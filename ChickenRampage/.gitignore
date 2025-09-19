@@ -1,0 +1,41 @@
+# ========== Unity Generated ==========
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild*/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+Assets/AssetStoreTools*
+
+# ========== Giữ lại file .meta để Unity không bị lỗi ==========
+!/[Aa]ssets/**/*.meta
+!/[Pp]ackages/**/*.meta
+!/[Pp]rojectSettings/**/*.meta
+
+# ========== IDE và Editor ==========
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.sln
+*.user
+*.userprefs
+
+# ========== Build Artifacts ==========
+*.apk
+*.aab
+*.exe
+*.app
+*.unitypackage
+*.dll
+*.pdb
+
+# ========== OS / System Files ==========
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========== Rider ==========
+*.sln.iml
