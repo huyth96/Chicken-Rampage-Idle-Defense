@@ -1,0 +1,1243 @@
+========== UNITY SCRIPT DUMP ==========
+Time : 2025-09-29T18:29:17
+Root : Scripts
+Ext  : .cs
+=======================================
+
+# ==== FILE 1/26: Scripts\Chicken\ChickenDefinitionSO.cs
+# SIZE: 1054 bytes | LINES: 30
+# ---- BEGIN ----
+// Assets/Scripts/Chicken/ChickenDefinitionSO.cs
+using UnityEngine;
+
+[CreateAssetMenu(menuName = "CR/Chicken Definition")]
+public class ChickenDefinitionSO : ScriptableObject
+{
+    [Header("Meta")]
+    public string id = "chicken_soldier";
+    public ChickenType type = ChickenType.Soldier;
+
+    [Header("Stats (per unit)")]
+    public long baseDamage = 10;         // sát thương/viên
+    public float rateOfFire = 2.0f;      // viên/giây
+    [Range(0, 1f)] public float critChance = 0.1f;
+    public float critMultiplier = 2.0f;
+    public float range = 8f;
+
+    [Header("Targeting")]
+    public bool prioritizeClosest = true;  // ưu tiên gần nhất
+    public bool allowThroughWalls = true;  // nếu false sẽ raycast line-of-sight
+
+    [Header("Firing Mode")]
+    public Projectile projectilePrefab;     // nếu để trống => Instant Hit
+    public float projectileSpeed = 16f;
+    public bool areaOfEffect = false;
+    public float aoeRadius = 1.5f;
+
+    [Header("Visuals")]
+    public Sprite icon;
+}
+# ---- END ----
+
+# ==== FILE 2/26: Scripts\Chicken\ChickenType.cs
+# SIZE: 341 bytes | LINES: 12
+# ---- BEGIN ----
+// Assets/Scripts/Chicken/ChickenType.cs
+using UnityEngine;
+
+public enum ChickenType
+{
+    Soldier,   // Pistol – cơ bản, rẻ
+    Rapid,     // SMG – tốc độ cao
+    Sniper,    // chậm, crit lớn
+    Shotgun,   // rải gần
+    Rocket,    // AoE
+    Support    // buff (để trống damage, sau gắn sau)
+}
+# ---- END ----
+
+# ==== FILE 3/26: Scripts\Chicken\ChickenUnit.cs
+# SIZE: 5793 bytes | LINES: 171
+# ---- BEGIN ----
+// Assets/Scripts/Chicken/ChickenUnit.cs
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+[RequireComponent(typeof(Transform))]
+public class ChickenUnit : MonoBehaviour
+{
+    [Header("Bind")]
+    public ChickenDefinitionSO def;
+
+    [Header("Scan")]
+    public LayerMask enemyLayer;      // set Layer "Enemy" nếu có
+    public bool usePhysicsScan = true;
+    public float scanInterval = 0.2f; // thời gian giữa mỗi lần tìm target
+
+    float _cooldown;
+    float _scanTimer;
+    Enemy _currentTarget;
+
+    // DPS lý thuyết = dmg * (1 + critChance*(critMul-1)) * ROF
+    public float TheoreticalDPS
+    {
+        get
+        {
+            double avgCritMul = 1.0 + (double)def.critChance * ((double)def.critMultiplier - 1.0);
+            double perShot = (double)def.baseDamage * avgCritMul;
+            return (float)(perShot * (double)def.rateOfFire);
+        }
+    }
+
+    void Update()
+    {
+        if (def == null) return;
+
+        // Tìm target định kỳ
+        _scanTimer -= Time.deltaTime;
+        if (_scanTimer <= 0f)
+        {
+            _scanTimer = scanInterval;
+            AcquireTarget();
+        }
+
+        // Bắn
+        if (_currentTarget != null)
+        {
+            float dist = Vector3.Distance(transform.position, _currentTarget.transform.position);
+            if (dist > def.range || !_currentTarget.gameObject.activeInHierarchy)
+            {
+                _currentTarget = null;
+            }
+        }
+
+        _cooldown -= Time.deltaTime;
+        if (_currentTarget != null && _cooldown <= 0f)
+        {
+            FireAt(_currentTarget);
+            _cooldown = 1f / Mathf.Max(0.01f, def.rateOfFire);
+        }
+    }
+
+    void AcquireTarget()
+    {
+        Vector3 center = transform.position;
+
+        if (usePhysicsScan && enemyLayer.value != 0)
+        {
+            // quét tròn bằng Physics2D
+            var hits = Physics2D.OverlapCircleAll(center, def.range, enemyLayer);
+            Enemy best = null;
+            float bestScore = float.PositiveInfinity; // dùng khoảng cách làm score
+
+            foreach (var h in hits)
+            {
+                Enemy e = h.GetComponent<Enemy>();
+                if (e == null || !e.gameObject.activeInHierarchy) continue;
+
+                float d = Vector3.SqrMagnitude(e.transform.position - center);
+                if (def.prioritizeClosest)
+                {
+                    if (d < bestScore) { best = e; bestScore = d; }
+                }
+                else
+                {
+                    // có thể thêm chiến lược khác sau này (tiến gần Base nhất, v.v.)
+                    if (d < bestScore) { best = e; bestScore = d; }
+                }
+            }
+            _currentTarget = best;
+            return;
+        }
+
+        // fallback: tìm mọi Enemy (ít tối ưu nhưng đủ dùng bản proto)
+        Enemy[] all = GameObject.FindObjectsByType<Enemy>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        Enemy best2 = null;
+        float bs = float.PositiveInfinity;
+        foreach (var e in all)
+        {
+            if (!e.gameObject.activeInHierarchy) continue;
+            float d = Vector3.Distance(center, e.transform.position);
+            if (d <= def.range && d < bs)
+            {
+                bs = d; best2 = e;
+            }
+        }
+        _currentTarget = best2;
+    }
+
+    void FireAt(Enemy target)
+    {
+        if (target == null) return;
+
+        long damage = RollDamage();
+
+        // Nếu có projectile prefab => bắn đạn
+        if (def.projectilePrefab != null)
+        {
+            var proj = Instantiate(def.projectilePrefab, transform.position, Quaternion.identity);
+            proj.damage = damage;
+            proj.speed = def.projectileSpeed;
+            proj.target = target.transform;
+        }
+        else
+        {
+            // Instant hit (raycast optional)
+            if (!def.allowThroughWalls)
+            {
+                Vector2 dir = (target.transform.position - transform.position).normalized;
+                float dist = Vector3.Distance(transform.position, target.transform.position);
+                var hit = Physics2D.Raycast(transform.position, dir, dist, enemyLayer);
+                // nếu cần check tường, bạn tạo LayerMask cho "Wall" và raycast hai lần
+            }
+            target.TakeDamage(damage);
+
+            // nếu AoE
+            if (def.areaOfEffect && def.aoeRadius > 0.01f)
+            {
+                var hits = Physics2D.OverlapCircleAll(target.transform.position, def.aoeRadius, enemyLayer);
+                foreach (var h in hits)
+                {
+                    var e = h.GetComponent<Enemy>();
+                    if (e != null && e != target) e.TakeDamage(damage);
+                }
+            }
+        }
+    }
+
+    long RollDamage()
+    {
+        bool isCrit = UnityEngine.Random.value < def.critChance;
+        double mul = isCrit ? (double)def.critMultiplier : 1.0;
+        double val = (double)def.baseDamage * mul;
+        if (val <= long.MinValue) return long.MinValue;
+        if (val >= long.MaxValue) return long.MaxValue;
+        return (long)System.Math.Round(val);
+    }
+
+#if UNITY_EDITOR
+    void OnDrawGizmosSelected()
+    {
+        if (def == null) return;
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(transform.position, def.range);
+        if (def.areaOfEffect)
+        {
+            Gizmos.color = new Color(1f, 0.5f, 0.1f, 0.8f);
+            Gizmos.DrawWireSphere(transform.position + Vector3.right * 0.5f, Mathf.Max(0.1f, def.aoeRadius));
+        }
+    }
+#endif
+}
+# ---- END ----
+
+# ==== FILE 4/26: Scripts\Chicken\EquipSlots.cs
+# SIZE: 2054 bytes | LINES: 70
+# ---- BEGIN ----
+// Assets/Scripts/Chicken/EquipSlots.cs
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class EquipSlots : MonoBehaviour
+{
+    [Serializable]
+    public class Slot
+    {
+        public Transform mountPoint;    // nơi đặt prefab gà (empty child)
+        public ChickenUnit current;     // instance đang gắn (runtime)
+    }
+
+    [Header("Slots (5)")]
+    public Slot[] slots = new Slot[5];
+
+    [Header("Prefab gà mặc định")]
+    public ChickenUnit chickenPrefab; // prefab có ChickenUnit + sprite/renderer
+
+    public int SlotCount => slots != null ? slots.Length : 0;
+
+    public bool IsValidIndex(int index) => index >= 0 && index < SlotCount;
+
+    public ChickenUnit Assign(int slotIndex, ChickenDefinitionSO def)
+    {
+        if (!IsValidIndex(slotIndex) || def == null || chickenPrefab == null) return null;
+
+        // Clear nếu đã có
+        Remove(slotIndex);
+
+        var s = slots[slotIndex];
+        var inst = Instantiate(chickenPrefab, s.mountPoint != null ? s.mountPoint : transform);
+        inst.transform.localPosition = Vector3.zero;
+        inst.def = def;
+        s.current = inst;
+
+        return inst;
+    }
+
+    public void Remove(int slotIndex)
+    {
+        if (!IsValidIndex(slotIndex)) return;
+        var s = slots[slotIndex];
+        if (s.current != null)
+        {
+            Destroy(s.current.gameObject);
+            s.current = null;
+        }
+    }
+
+    public void ClearAll()
+    {
+        for (int i = 0; i < SlotCount; i++) Remove(i);
+    }
+
+    public float GetTeamDPS()
+    {
+        float dps = 0f;
+        for (int i = 0; i < SlotCount; i++)
+        {
+            var c = slots[i].current;
+            if (c != null && c.def != null) dps += c.TheoreticalDPS;
+        }
+        return dps;
+    }
+
+    // (tùy chọn) Lưu/đọc roster rất gọn: lưu id SO theo Resources path hoặc GUID.
+    // Ở bản Sprint 2 này mình để runtime; bạn có thể gắn vào SaveManager sau.
+}
+# ---- END ----
+
+# ==== FILE 5/26: Scripts\Chicken\TeamAutoAssign.cs
+# SIZE: 344 bytes | LINES: 16
+# ---- BEGIN ----
+using UnityEngine;
+
+public class TeamAutoAssign : MonoBehaviour
+{
+    public EquipSlots team;
+    public ChickenDefinitionSO soldier;
+
+    void Start()
+    {
+        if (!team) team = GetComponent<EquipSlots>();
+        if (team && soldier)
+        {
+            team.Assign(0, soldier); // gán 1 gà vào Slot0
+        }
+    }
+}
+# ---- END ----
+
+# ==== FILE 6/26: Scripts\Combat\BaseHealth.cs
+# SIZE: 731 bytes | LINES: 28
+# ---- BEGIN ----
+using System;
+using UnityEngine;
+
+public class BaseHealth : MonoBehaviour
+{
+    [Header("Config")]
+    public long baseHp = 500;
+    public long hpPerWave = 40; // gợi ý công thức: 500 + wave×40
+
+    [Header("Runtime (read only)")]
+    [SerializeField] private long currentHp;
+    public event Action OnBaseDead;
+
+    void Start()
+    {
+        var wave = Mathf.Max(0, SaveManager.Data.waveIndex);
+        currentHp = baseHp + hpPerWave * wave;
+    }
+
+    public long CurrentHp => currentHp;
+
+    public void TakeDamage(long dmg)
+    {
+        if (currentHp <= 0) return;
+        currentHp = Math.Max(0, currentHp - Math.Max(0, dmg));
+        if (currentHp == 0) OnBaseDead?.Invoke();
+    }
+}
+# ---- END ----
+
+# ==== FILE 7/26: Scripts\Combat\Enemy\Enemy.cs
+# SIZE: 1505 bytes | LINES: 52
+# ---- BEGIN ----
+// Enemy.cs
+using UnityEngine;
+
+[RequireComponent(typeof(Collider2D))]
+public class Enemy : MonoBehaviour
+{
+    public EnemyDefinitionSO def;
+    public BaseHealth targetBase;
+    public float laneY = 0f;
+    public float spawnX = 10f;
+
+    private long hp;
+    private bool _dead;        // ✅ chốt chống double-die
+
+    void OnEnable()
+    {
+        _dead = false;         // ✅ reset mỗi lần spawn lại
+        hp = def != null ? def.baseHP : 10;
+        var pos = transform.position;
+        transform.position = new Vector3(spawnX, laneY, pos.z);
+    }
+
+    void Update()
+    {
+        if (_dead) return;     // ✅ đã chết thì thôi
+        transform.position += Vector3.left * (def != null ? def.moveSpeed : 1.5f) * Time.deltaTime;
+    }
+
+    public void TakeDamage(long dmg)
+    {
+        if (_dead) return;     // ✅ guard
+        hp -= Mathf.Max(0, (int)dmg);
+        if (hp <= 0) Die();
+    }
+
+    void OnTriggerEnter2D(Collider2D c)
+    {
+        if (_dead) return;     // ✅ guard
+        var b = c.GetComponent<BaseHealth>();
+        if (!b) return;
+        b.TakeDamage(def != null ? def.touchDamage : 10);
+        Die();                 // có thể trùng với kết liễu bằng đạn nếu không có guard
+    }
+
+    void Die()
+    {
+        if (_dead) return;     // ✅ guard
+        _dead = true;
+        EconomyManager.I.AddCoin(def != null ? def.bounty : 1);
+        gameObject.SetActive(false);
+    }
+}
+# ---- END ----
+
+# ==== FILE 8/26: Scripts\Combat\Enemy\EnemyDefinitionSO.cs
+# SIZE: 410 bytes | LINES: 12
+# ---- BEGIN ----
+using UnityEngine;
+
+[CreateAssetMenu(menuName = "CR/Enemy Definition")]
+public class EnemyDefinitionSO : ScriptableObject
+{
+    public string id = "zombie_basic";
+    public long baseHP = 30;
+    public float moveSpeed = 1.5f;
+    public long touchDamage = 10;   // sát thương vào Base khi chạm
+    public long bounty = 5;         // coin rơi khi chết
+    public bool isBoss = false;
+}
+# ---- END ----
+
+# ==== FILE 9/26: Scripts\Combat\Projectile.cs
+# SIZE: 1355 bytes | LINES: 53
+# ---- BEGIN ----
+// Assets/Scripts/Combat/Projectile.cs
+using UnityEngine;
+
+public class Projectile : MonoBehaviour
+{
+    public long damage;
+    public float speed = 16f;
+    public Transform target;       // mục tiêu tại thời điểm bắn
+    public float maxLife = 3f;     // tránh bay mãi
+
+    float _life;
+
+    void OnEnable()
+    {
+        _life = 0f;
+    }
+
+    void Update()
+    {
+        _life += Time.deltaTime;
+        if (_life >= maxLife || target == null)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
+
+        Vector3 tpos = target.position;
+        Vector3 dir = (tpos - transform.position);
+        float dist = dir.magnitude;
+
+        if (dist <= speed * Time.deltaTime) // chạm mục tiêu
+        {
+            HitTarget();
+            return;
+        }
+
+        dir.Normalize();
+        transform.position += dir * speed * Time.deltaTime;
+        // optional: xoay đầu đạn hướng theo dir
+        float ang = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+        transform.rotation = Quaternion.Euler(0, 0, ang);
+    }
+
+    void HitTarget()
+    {
+        var enemy = target ? target.GetComponent<Enemy>() : null;
+        if (enemy != null)
+        {
+            enemy.TakeDamage(damage);
+        }
+        gameObject.SetActive(false);
+    }
+}
+# ---- END ----
+
+# ==== FILE 10/26: Scripts\Core\Economy\EconomyManager.cs
+# SIZE: 883 bytes | LINES: 35
+# ---- BEGIN ----
+using System;
+using UnityEngine;
+
+public class EconomyManager : MonoBehaviour
+{
+    public static EconomyManager I { get; private set; }
+    public event Action<long> OnCoinChanged;
+
+    private void Awake()
+    {
+        if (I != null && I != this) { Destroy(gameObject); return; }
+        I = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    public long Coin => SaveManager.Data.coin;
+
+    public void AddCoin(long v)
+    {
+        if (v <= 0) return;
+        SaveManager.Data.coin += v;
+        OnCoinChanged?.Invoke(Coin);
+        SaveManager.MarkDirtyAndSave();
+    }
+
+    public bool TrySpend(long v)
+    {
+        if (v <= 0) return true;
+        if (SaveManager.Data.coin < v) return false;
+        SaveManager.Data.coin -= v;
+        OnCoinChanged?.Invoke(Coin);
+        SaveManager.MarkDirtyAndSave();
+        return true;
+    }
+}
+# ---- END ----
+
+# ==== FILE 11/26: Scripts\Core\Save\SaveData.cs
+# SIZE: 598 bytes | LINES: 24
+# ---- BEGIN ----
+using System;
+using System.Collections.Generic;
+
+[Serializable]
+public class SaveData
+{
+    public long coin = 0;
+    public int waveIndex = 0;
+    public long lastOnlineUtcTicks = DateTime.UtcNow.Ticks;
+
+    // Flags / options
+    public bool autoStart = false;
+
+    // Upgrades
+    public Dictionary<string, int> teamUpgrades = new();
+    public Dictionary<string, int> typeUpgrades = new();
+
+    // Slots
+    public int equipSlots = 5;
+    public int prepareSlots = 12;
+
+    // Anti-tamper
+    public string hash = ""; // lưu SHA256 cho các trường quan trọng
+}
+# ---- END ----
+
+# ==== FILE 12/26: Scripts\Core\Save\SaveManager.cs
+# SIZE: 3281 bytes | LINES: 98
+# ---- BEGIN ----
+using System;
+using System.IO;
+using System.Text;
+using System.Security.Cryptography;
+using UnityEngine;
+
+public static class SaveManager
+{
+    private const string FileName = "save.json";
+    private const string Salt = "CR_IDLE_DEFENSE_v1_SALT"; // đổi khi phát hành
+    private static SaveData _cache;
+
+    public static SaveData Data => _cache ??= Load();
+
+    static string FullPath => Path.Combine(Application.persistentDataPath, FileName);
+
+    public static SaveData Load()
+    {
+        try
+        {
+            if (!File.Exists(FullPath))
+            {
+                var fresh = new SaveData();
+                fresh.hash = ComputeHash(fresh);
+                return fresh;
+            }
+
+            var json = File.ReadAllText(FullPath);
+            var data = JsonUtility.FromJson<SaveData>(json);
+            if (data == null) return Fresh();
+
+            // Verify hash (chỉ kiểm các trường kinh tế/tiến trình)
+            var expected = ComputeHash(data);
+            if (!string.Equals(expected, data.hash, StringComparison.Ordinal))
+            {
+                Debug.LogWarning("[SaveManager] Hash mismatch! Possible tamper. Resetting sensitive fields.");
+                // Phòng thủ mềm: giữ cấu trúc, reset trường nhạy cảm
+                data.coin = Math.Max(0, data.coin);
+                data.waveIndex = Math.Max(0, data.waveIndex);
+                data.lastOnlineUtcTicks = DateTime.UtcNow.Ticks;
+                data.teamUpgrades ??= new();
+                data.typeUpgrades ??= new();
+                data.hash = ComputeHash(data);
+            }
+            return data;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[SaveManager] Load error: {e.Message}");
+            return Fresh();
+        }
+    }
+
+    public static void Save()
+    {
+        try
+        {
+            if (_cache == null) _cache = Fresh();
+            _cache.hash = ComputeHash(_cache);
+            var json = JsonUtility.ToJson(_cache, prettyPrint: true);
+            File.WriteAllText(FullPath, json, Encoding.UTF8);
+#if UNITY_EDITOR
+            Debug.Log($"[SaveManager] Saved → {FullPath}");
+#endif
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[SaveManager] Save error: {e.Message}");
+        }
+    }
+
+    public static void MarkDirtyAndSave() => Save();
+
+    public static void WipeAndRecreate()
+    {
+        try { if (File.Exists(FullPath)) File.Delete(FullPath); } catch { }
+        _cache = Fresh();
+        Save();
+    }
+
+    private static SaveData Fresh()
+    {
+        var s = new SaveData();
+        s.hash = ComputeHash(s);
+        return s;
+    }
+
+    private static string ComputeHash(SaveData d)
+    {
+        // Gộp các trường quan trọng để hash
+        var payload = $"{Salt}|coin:{d.coin}|wave:{d.waveIndex}|ticks:{d.lastOnlineUtcTicks}|eq:{d.equipSlots}|prep:{d.prepareSlots}";
+        using var sha = SHA256.Create();
+        var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(payload));
+        var sb = new StringBuilder(bytes.Length * 2);
+        foreach (var b in bytes) sb.Append(b.ToString("x2"));
+        return sb.ToString();
+    }
+}
+# ---- END ----
+
+# ==== FILE 13/26: Scripts\Core\Utils\DebugHotkeys.cs
+# SIZE: 442 bytes | LINES: 15
+# ---- BEGIN ----
+#if UNITY_EDITOR
+using UnityEngine;
+
+public class DebugHotkeys : MonoBehaviour
+{
+    public long step = 10;
+
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.Equals)) EconomyManager.I.AddCoin(step);   // phím '=' hoặc '+'
+        if (Input.GetKeyDown(KeyCode.Minus)) EconomyManager.I.TrySpend(step);  // phím '-'
+        if (Input.GetKeyDown(KeyCode.Backspace)) SaveManager.WipeAndRecreate();
+    }
+}
+#endif
+# ---- END ----
+
+# ==== FILE 14/26: Scripts\Core\Utils\ObjectPool.cs
+# SIZE: 642 bytes | LINES: 28
+# ---- BEGIN ----
+using System.Collections.Generic;
+using UnityEngine;
+
+public class ObjectPool<T> where T : Component
+{
+    private readonly T prefab;
+    private readonly Transform root;
+    private readonly Stack<T> stack = new();
+
+    public ObjectPool(T prefab, Transform root = null)
+    {
+        this.prefab = prefab;
+        this.root = root;
+    }
+
+    public T Get()
+    {
+        T x = stack.Count > 0 ? stack.Pop() : Object.Instantiate(prefab, root);
+        x.gameObject.SetActive(true);
+        return x;
+    }
+
+    public void Release(T x)
+    {
+        x.gameObject.SetActive(false);
+        stack.Push(x);
+    }
+}
+# ---- END ----
+
+# ==== FILE 15/26: Scripts\Core\Utils\SaveBootstrapper.cs
+# SIZE: 646 bytes | LINES: 27
+# ---- BEGIN ----
+using System;
+using UnityEngine;
+
+public class SaveBootstrapper : MonoBehaviour
+{
+    private void Awake()
+    {
+        // Chạm SaveManager.Data để kích hoạt Load() lần đầu
+        _ = SaveManager.Data;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    private void OnApplicationPause(bool pause)
+    {
+        if (pause)
+        {
+            SaveManager.Data.lastOnlineUtcTicks = DateTime.UtcNow.Ticks;
+            SaveManager.Save();
+        }
+    }
+
+    private void OnApplicationQuit()
+    {
+        SaveManager.Data.lastOnlineUtcTicks = DateTime.UtcNow.Ticks;
+        SaveManager.Save();
+    }
+}
+# ---- END ----
+
+# ==== FILE 16/26: Scripts\Data\Progress\ProgressionCurveSO.cs
+# SIZE: 700 bytes | LINES: 16
+# ---- BEGIN ----
+using UnityEngine;
+
+[CreateAssetMenu(menuName = "CR/Data/ProgressionCurve")]
+public class ProgressionCurveSO : ScriptableObject
+{
+    [Header("Zombie / Economy growth")]
+    public float hpLinear = 0.12f;      // HP tăng 12% mỗi wave
+    public float bountyLinear = 0.05f;  // Coin drop tăng 5% mỗi wave
+    public float waveRewardGrowth = 1.18f; // Mốc thưởng theo hàm mũ
+
+    [Header("Session")]
+    public float targetDuration = 25f;  // Thời gian mục tiêu 1 wave (giúp generator cân chỉnh số enemy)
+    public float offlineFactor = 0.65f; // Hệ số thưởng offline
+    public int offlineCapHours = 8;     // Giới hạn tính thưởng offline
+}
+
+# ---- END ----
+
+# ==== FILE 17/26: Scripts\UI\BaseHPBinder.cs
+# SIZE: 282 bytes | LINES: 14
+# ---- BEGIN ----
+using TMPro;
+using UnityEngine;
+
+public class BaseHPBinder : MonoBehaviour
+{
+    public BaseHealth baseHealth;
+    public TMP_Text hpText;
+
+    void Update()
+    {
+        if (baseHealth && hpText)
+            hpText.text = $"Base HP: {baseHealth.CurrentHp}";
+    }
+}
+# ---- END ----
+
+# ==== FILE 18/26: Scripts\UI\HUDCoinBinder.cs
+# SIZE: 659 bytes | LINES: 28
+# ---- BEGIN ----
+using TMPro;
+using UnityEngine;
+
+public class HUDCoinBinder : MonoBehaviour
+{
+    [SerializeField] private TMP_Text coinText;
+
+    private void Start()
+    {
+        if (coinText == null)
+            coinText = GetComponentInChildren<TMP_Text>();
+
+        // init from save
+        coinText.text = $"Coin: {EconomyManager.I.Coin}";
+        EconomyManager.I.OnCoinChanged += OnCoinChanged;
+    }
+
+    private void OnDestroy()
+    {
+        if (EconomyManager.I != null)
+            EconomyManager.I.OnCoinChanged -= OnCoinChanged;
+    }
+
+    private void OnCoinChanged(long value)
+    {
+        coinText.text = $"{value}" ;
+    }
+}
+# ---- END ----
+
+# ==== FILE 19/26: Scripts\UI\ResultPanelController.cs
+# SIZE: 1202 bytes | LINES: 49
+# ---- BEGIN ----
+// Assets/Scripts/UI/ResultPanelController.cs
+using TMPro;
+using UnityEngine;
+
+public class ResultPanelController : MonoBehaviour
+{
+    public WaveManager wm;
+    public GameObject root;
+    public TMP_Text title;
+    public TMP_Text waveText;
+
+    void Start()
+    {
+        if (root) root.SetActive(false);
+        if (wm)
+        {
+            wm.OnWin += ShowWin;
+            wm.OnFail += ShowFail;
+        }
+    }
+    void OnDestroy()
+    {
+        if (wm)
+        {
+            wm.OnWin -= ShowWin;
+            wm.OnFail -= ShowFail;
+        }
+    }
+
+    void ShowWin()
+    {
+        if (!root) return;
+        root.SetActive(true);
+        if (title) title.text = "WIN!";
+        if (waveText) waveText.text = $"Wave {wm.CurrentWave - 1} cleared";
+    }
+
+    void ShowFail()
+    {
+        if (!root) return;
+        root.SetActive(true);
+        if (title) title.text = "FAIL!";
+        if (waveText) waveText.text = $"Failed at Wave {wm.CurrentWave}";
+    }
+
+    // Hook UI buttons
+    public void OnClaim() { wm.ClaimAndContinue(); if (root) root.SetActive(false); }
+    public void OnRetry() { wm.Retry(); if (root) root.SetActive(false); }
+}
+# ---- END ----
+
+# ==== FILE 20/26: Scripts\UI\StartMenuController.cs
+# SIZE: 529 bytes | LINES: 26
+# ---- BEGIN ----
+using UnityEngine;
+using UnityEngine.Audio;
+using UnityEngine.SceneManagement;
+
+public class StartMenuController : MonoBehaviour
+{
+    public AudioMixer audioMixer;
+
+    public void OnStartClick()
+    {
+        SceneManager.LoadScene("Game");
+    }
+
+    public void OnExitClick()
+    {
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#endif
+        Application.Quit();
+    }
+
+    public void SetVolume(float volume)
+    {
+        audioMixer.SetFloat("Volume", volume);
+    }
+}
+# ---- END ----
+
+# ==== FILE 21/26: Scripts\Wave\EnemyHook.cs
+# SIZE: 413 bytes | LINES: 17
+# ---- BEGIN ----
+// Assets/Scripts/Wave/EnemyHook.cs
+using UnityEngine;
+
+// Gắn vào prefab Enemy để WaveManager biết khi nào đã clear hết
+[RequireComponent(typeof(Enemy))]
+public class EnemyHook : MonoBehaviour
+{
+    void OnEnable()
+    {
+        if (EnemyRegistry.I) EnemyRegistry.I.Register();
+    }
+
+    void OnDisable()
+    {
+        if (EnemyRegistry.I) EnemyRegistry.I.Unregister();
+    }
+}
+# ---- END ----
+
+# ==== FILE 22/26: Scripts\Wave\EnemyRegistry.cs
+# SIZE: 841 bytes | LINES: 37
+# ---- BEGIN ----
+using System;
+using UnityEngine;
+
+public class EnemyRegistry : MonoBehaviour
+{
+    // Singleton để WaveManager gọi nhanh
+    public static EnemyRegistry I { get; private set; }
+
+    public event Action OnAllCleared;
+
+    private int _alive = 0;
+
+    void Awake()
+    {
+        if (I != null && I != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        I = this;
+    }
+
+    /// <summary>Gọi khi Enemy spawn (EnemyHook.OnEnable)</summary>
+    public void Register()
+    {
+        _alive++;
+    }
+
+    /// <summary>Gọi khi Enemy chết hoặc bị disable (EnemyHook.OnDisable)</summary>
+    public void Unregister()
+    {
+        _alive = Mathf.Max(0, _alive - 1);
+        if (_alive == 0) OnAllCleared?.Invoke();
+    }
+
+    public int AliveCount => _alive;
+}
+# ---- END ----
+
+# ==== FILE 23/26: Scripts\Wave\WaveDefinitionSO.cs
+# SIZE: 564 bytes | LINES: 22
+# ---- BEGIN ----
+// Assets/Scripts/Wave/WaveDefinitionSO.cs
+using System;
+using UnityEngine;
+
+[CreateAssetMenu(menuName = "CR/Wave Definition")]
+public class WaveDefinitionSO : ScriptableObject
+{
+    public int waveIndex = 1;
+    public float targetDuration = 25f;
+    [Serializable]
+    public struct Group
+    {
+        public EnemyDefinitionSO enemy;
+        public int count;
+        public float interval;
+        public float startTime;
+        public float laneY;
+        public float spawnX;
+    }
+    public Group[] groups;
+    public bool isBoss;
+}
+# ---- END ----
+
+# ==== FILE 24/26: Scripts\Wave\WaveManager.cs
+# SIZE: 4585 bytes | LINES: 136
+# ---- BEGIN ----
+// Assets/Scripts/Wave/WaveManager.cs
+using System;
+using UnityEngine;
+
+public class WaveManager : MonoBehaviour
+{
+    [Header("Refs")]
+    public BaseHealth baseHealth;
+    public WaveSpawner spawner;
+    public ProgressionCurveSO progression; // để tính thưởng cơ bản :contentReference[oaicite:7]{index=7}
+
+    [Header("Definitions")]
+    public WaveDefinitionSO[] presets; // Wave 1-20 có thể preset tay
+    public bool autoStart = true;
+
+    [Header("Runtime (read-only)")]
+    [SerializeField] private WaveState state = WaveState.Prepare;
+    [SerializeField] private int currentWaveIndex;
+    [SerializeField] private bool lastWin;
+
+    public event Action OnWin;
+    public event Action OnFail;
+
+    void Awake()
+    {
+        // Khởi động từ Save
+        currentWaveIndex = Mathf.Max(1, SaveManager.Data.waveIndex + 1);
+    }
+
+    void OnEnable()
+    {
+        if (baseHealth) baseHealth.OnBaseDead += HandleBaseDead;
+        if (EnemyRegistry.I) EnemyRegistry.I.OnAllCleared += HandleAllCleared; // win khi hết enemy :contentReference[oaicite:8]{index=8}
+    }
+
+    void OnDisable()
+    {
+        if (baseHealth) baseHealth.OnBaseDead -= HandleBaseDead;
+        if (EnemyRegistry.I) EnemyRegistry.I.OnAllCleared -= HandleAllCleared;
+    }
+
+    void Start()
+    {
+        if (autoStart || SaveManager.Data.autoStart) GoPrepare();
+    }
+
+    public void GoPrepare()
+    {
+        state = WaveState.Prepare;
+        lastWin = false;
+        // Tại Prepare bạn có thể mở UI nâng cấp/mua gà...
+        if (autoStart || SaveManager.Data.autoStart) StartCombat();
+    }
+
+    public void StartCombat()
+    {
+        if (state != WaveState.Prepare) return;
+        state = WaveState.Combat;
+
+        // Lấy wave def (ưu tiên preset)
+        var def = GetWaveDefinition(currentWaveIndex);
+        if (!def) { Debug.LogWarning($"[WaveManager] Missing Wave {currentWaveIndex} def"); }
+        spawner.Begin(def);
+
+        // Reset/scale Base HP theo wave đã có trong BaseHealth (đang tính bằng base + hpPerWave*wave) :contentReference[oaicite:9]{index=9}
+    }
+
+    WaveDefinitionSO GetWaveDefinition(int waveIndex)
+    {
+        // 1–20: dùng preset nếu có
+        if (presets != null && waveIndex - 1 < presets.Length && waveIndex - 1 >= 0)
+            return presets[waveIndex - 1];
+
+        // ≥21: về sau gắn RuntimeWaveGenerator (Sprint 6)
+        return presets != null && presets.Length > 0 ? presets[Mathf.Clamp(presets.Length - 1, 0, presets.Length - 1)] : null;
+    }
+
+    void HandleAllCleared()
+    {
+        if (state != WaveState.Combat) return;
+        if (!spawner.IsFinishedSpawning) return; // chưa spawn xong mà hết là do timing, chờ tiếp
+        // WIN
+        lastWin = true;
+        GrantRewards(currentWaveIndex);
+        AdvanceWaveIndex();
+        state = WaveState.Result;
+        OnWin?.Invoke();
+        // Mở UI Result Win (Claim). Sau Claim → GoPrepare();
+    }
+
+    void HandleBaseDead()
+    {
+        if (state != WaveState.Combat) return;
+        // FAIL
+        lastWin = false;
+        // Không cộng WaveReward, chỉ giữ coin rơi trong combat (đã AddCoin khi enemy chết)
+        state = WaveState.Result;
+        OnFail?.Invoke();
+        // UI Result Fail → Retry (replay wave) hoặc Back
+    }
+
+    void AdvanceWaveIndex()
+    {
+        SaveManager.Data.waveIndex = Mathf.Max(SaveManager.Data.waveIndex, currentWaveIndex);
+        SaveManager.MarkDirtyAndSave();
+        currentWaveIndex = SaveManager.Data.waveIndex + 1;
+    }
+
+    void GrantRewards(int waveIndex)
+    {
+        if (!progression) return;
+        // Công thức gợi ý: WaveReward = 1000 * (waveRewardGrowth^waveIndex)
+        double baseReward = 1000.0 * Math.Pow(progression.waveRewardGrowth, waveIndex);
+        long reward = (long)Math.Round(baseReward);
+        EconomyManager.I.AddCoin(reward); // EconomyManager đã có sẵn :contentReference[oaicite:10]{index=10}
+    }
+
+    // Public API cho UI
+    public WaveState State => state;
+    public int CurrentWave => currentWaveIndex;
+    public bool LastWin => lastWin;
+
+    public void ClaimAndContinue()
+    {
+        if (state != WaveState.Result) return;
+        GoPrepare();
+    }
+
+    public void Retry()
+    {
+        if (state != WaveState.Result) return;
+        // Retry lại cùng waveIndex hiện tại (không advance)
+        state = WaveState.Prepare;
+        StartCombat();
+    }
+}
+# ---- END ----
+
+# ==== FILE 25/26: Scripts\Wave\WaveSpawner.cs
+# SIZE: 2780 bytes | LINES: 82
+# ---- BEGIN ----
+// Assets/Scripts/Wave/WaveSpawner.cs
+using UnityEngine;
+
+public class WaveSpawner : MonoBehaviour
+{
+    [Header("Refs")]
+    public Enemy enemyPrefab;
+    public Transform poolRoot;
+    public BaseHealth baseHealth;
+
+    [Header("Runtime")]
+    public WaveDefinitionSO wave;
+    private ObjectPool<Enemy> pool;
+    private float t;
+    private int[] spawnedPerGroup;
+    private bool active;
+
+    void Awake()
+    {
+        pool = new ObjectPool<Enemy>(enemyPrefab, poolRoot); // dùng ObjectPool có sẵn :contentReference[oaicite:4]{index=4}
+    }
+
+    public void Begin(WaveDefinitionSO def)
+    {
+        wave = def;
+        if (wave == null) { Debug.LogWarning("[WaveSpawner] Wave null"); return; }
+        t = 0f;
+        spawnedPerGroup = new int[wave.groups.Length];
+        active = true;
+    }
+
+    public bool IsFinishedSpawning
+    {
+        get
+        {
+            if (wave == null || spawnedPerGroup == null) return true;
+            for (int i = 0; i < spawnedPerGroup.Length; i++)
+            {
+                if (spawnedPerGroup[i] < wave.groups[i].count) return false;
+            }
+            return true;
+        }
+    }
+
+    void Update()
+    {
+        if (!active || wave == null) return;
+        t += Time.deltaTime;
+
+        for (int i = 0; i < wave.groups.Length; i++)
+        {
+            var g = wave.groups[i];
+            if (t < g.startTime) continue;
+
+            // Spawn đều theo interval
+            if (spawnedPerGroup[i] < g.count)
+            {
+                // Mốc sinh theo đếm số lượng & thời gian
+                int expect = Mathf.FloorToInt((t - g.startTime) / Mathf.Max(0.01f, g.interval)) + 1;
+                int toSpawn = Mathf.Clamp(expect - spawnedPerGroup[i], 0, g.count - spawnedPerGroup[i]);
+                for (int k = 0; k < toSpawn; k++) SpawnOne(g);
+                spawnedPerGroup[i] += toSpawn;
+            }
+        }
+        // Khi đã spawn xong hết → Spawner có thể idle; Win sẽ do EnemyRegistry báo
+        if (IsFinishedSpawning) active = false;
+    }
+
+    void SpawnOne(WaveDefinitionSO.Group g)
+    {
+        var e = pool.Get();
+        e.def = g.enemy;
+        e.targetBase = baseHealth;  // BaseHealth đã có logic HP/Fail :contentReference[oaicite:5]{index=5}
+        e.laneY = g.laneY;
+        e.spawnX = g.spawnX != 0 ? g.spawnX : 10f;
+        e.transform.position = new Vector3(e.spawnX, e.laneY, 0);
+
+        // YÊU CẦU: Prefab Enemy nên có EnemyHook để đếm số lượng sống trong EnemyRegistry :contentReference[oaicite:6]{index=6}
+        // Nếu prefab chưa có, add tạm:
+        if (!e.GetComponent<EnemyHook>()) e.gameObject.AddComponent<EnemyHook>();
+    }
+}
+# ---- END ----
+
+# ==== FILE 26/26: Scripts\Wave\WaveState.cs
+# SIZE: 108 bytes | LINES: 7
+# ---- BEGIN ----
+// Assets/Scripts/Wave/WaveState.cs
+public enum WaveState
+{
+    Prepare,
+    Combat,
+    Result
+}
+# ---- END ----
+
+========== SUMMARY ==========
+26 file(s), 1105 lines, 32742 bytes
