@@ -1,82 +1,107 @@
 ﻿// Assets/Scripts/Wave/WaveSpawner.cs
+using System.Collections.Generic;
 using UnityEngine;
+
+[System.Serializable]
+public class EnemyPrefabEntry
+{
+    public EnemyDefinitionSO definition;   // SO của loại enemy
+    public Enemy prefab;                   // Prefab tương ứng
+}
 
 public class WaveSpawner : MonoBehaviour
 {
+    [Header("Mapping SO → Prefab")]
+    public EnemyPrefabEntry[] enemyPrefabs;   // Kéo thả trong Inspector
+
     [Header("Refs")]
-    public Enemy enemyPrefab;
-    public Transform poolRoot;
-    public BaseHealth baseHealth;
+    public Transform poolRoot;                // Container tùy chọn
+    public BaseHealth baseHealth;             // Base để quái tìm đến
 
     [Header("Runtime")]
     public WaveDefinitionSO wave;
-    private ObjectPool<Enemy> pool;
-    private float t;
-    private int[] spawnedPerGroup;
-    private bool active;
+
+    // Nội bộ
+    Dictionary<EnemyDefinitionSO, ObjectPool<Enemy>> _pools;
+    Dictionary<EnemyDefinitionSO, Enemy> _prefabByDef;
+    float _t;
+    int[] _spawnedPerGroup;
+    bool _active;
 
     void Awake()
     {
-        pool = new ObjectPool<Enemy>(enemyPrefab, poolRoot); // dùng ObjectPool có sẵn :contentReference[oaicite:4]{index=4}
+        _pools = new Dictionary<EnemyDefinitionSO, ObjectPool<Enemy>>();
+        _prefabByDef = new Dictionary<EnemyDefinitionSO, Enemy>();
+
+        if (enemyPrefabs == null) return;
+
+        foreach (var entry in enemyPrefabs)
+        {
+            // ✅ dùng so sánh null, KHÔNG dùng !
+            if (entry == null || entry.definition == null || entry.prefab == null)
+                continue;
+
+            _prefabByDef[entry.definition] = entry.prefab;
+            _pools[entry.definition] = new ObjectPool<Enemy>(entry.prefab, poolRoot);
+        }
     }
 
     public void Begin(WaveDefinitionSO def)
     {
         wave = def;
-        if (wave == null) { Debug.LogWarning("[WaveSpawner] Wave null"); return; }
-        t = 0f;
-        spawnedPerGroup = new int[wave.groups.Length];
-        active = true;
+        _t = 0f;
+        _active = true;
+        _spawnedPerGroup = wave != null && wave.groups != null ? new int[wave.groups.Length] : null;
     }
 
     public bool IsFinishedSpawning
     {
         get
         {
-            if (wave == null || spawnedPerGroup == null) return true;
-            for (int i = 0; i < spawnedPerGroup.Length; i++)
-            {
-                if (spawnedPerGroup[i] < wave.groups[i].count) return false;
-            }
+            if (wave == null || _spawnedPerGroup == null) return true;
+            for (int i = 0; i < _spawnedPerGroup.Length; i++)
+                if (_spawnedPerGroup[i] < wave.groups[i].count) return false;
             return true;
         }
     }
 
     void Update()
     {
-        if (!active || wave == null) return;
-        t += Time.deltaTime;
+        if (!_active || wave == null) return;
+        _t += Time.deltaTime;
 
         for (int i = 0; i < wave.groups.Length; i++)
         {
             var g = wave.groups[i];
-            if (t < g.startTime) continue;
+            if (_t < g.startTime) continue;
 
-            // Spawn đều theo interval
-            if (spawnedPerGroup[i] < g.count)
+            if (_spawnedPerGroup[i] < g.count)
             {
-                // Mốc sinh theo đếm số lượng & thời gian
-                int expect = Mathf.FloorToInt((t - g.startTime) / Mathf.Max(0.01f, g.interval)) + 1;
-                int toSpawn = Mathf.Clamp(expect - spawnedPerGroup[i], 0, g.count - spawnedPerGroup[i]);
+                int expect = Mathf.FloorToInt((_t - g.startTime) / Mathf.Max(0.01f, g.interval)) + 1;
+                int toSpawn = Mathf.Clamp(expect - _spawnedPerGroup[i], 0, g.count - _spawnedPerGroup[i]);
                 for (int k = 0; k < toSpawn; k++) SpawnOne(g);
-                spawnedPerGroup[i] += toSpawn;
+                _spawnedPerGroup[i] += toSpawn;
             }
         }
-        // Khi đã spawn xong hết → Spawner có thể idle; Win sẽ do EnemyRegistry báo
-        if (IsFinishedSpawning) active = false;
+
+        if (IsFinishedSpawning) _active = false;
     }
 
     void SpawnOne(WaveDefinitionSO.Group g)
     {
+        if (g.enemy == null || !_pools.TryGetValue(g.enemy, out var pool))
+        {
+            Debug.LogError($"[WaveSpawner] No prefab mapped for definition: {g.enemy}");
+            return;
+        }
+
         var e = pool.Get();
-        e.def = g.enemy;
-        e.targetBase = baseHealth;  // BaseHealth đã có logic HP/Fail :contentReference[oaicite:5]{index=5}
+        e.def = g.enemy;                        // gán SO → Enemy.cs đọc chỉ số từ đây
+        e.targetBase = baseHealth;
         e.laneY = g.laneY;
         e.spawnX = g.spawnX != 0 ? g.spawnX : 10f;
         e.transform.position = new Vector3(e.spawnX, e.laneY, 0);
 
-        // YÊU CẦU: Prefab Enemy nên có EnemyHook để đếm số lượng sống trong EnemyRegistry :contentReference[oaicite:6]{index=6}
-        // Nếu prefab chưa có, add tạm:
-        if (!e.GetComponent<EnemyHook>()) e.gameObject.AddComponent<EnemyHook>();
+        if (!e.GetComponent<EnemyHook>()) e.gameObject.AddComponent<EnemyHook>(); // để EnemyRegistry đếm
     }
 }

@@ -12705,7 +12705,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c773f152f6d4aec429b3e4c975cf8d12, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemyPrefab: {fileID: 0}
+  enemyPrefabs:
+  - definition: {fileID: 11400000, guid: bd501e2eaddab70439865a668e63a23c, type: 2}
+    prefab: {fileID: -4133247306779680678, guid: bece3902b468c6347836f55c2594a70a, type: 3}
   poolRoot: {fileID: 704305504}
   baseHealth: {fileID: 690993985}
   wave: {fileID: 0}
