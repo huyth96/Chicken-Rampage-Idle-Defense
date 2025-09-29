@@ -14,11 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: chicken_soldier
   type: 0
-  baseDamage: 10
+  baseDamage: 100
   rateOfFire: 1
   critChance: 0.1
   critMultiplier: 2
-  range: 10
+  range: 20
   prioritizeClosest: 1
   allowThroughWalls: 0
   projectilePrefab: {fileID: 3587420852616020320, guid: 13eda021a5fd10a4bbd99ba1ac7becd1, type: 3}

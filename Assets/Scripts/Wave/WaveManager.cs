@@ -1,4 +1,5 @@
 ﻿// Assets/Scripts/Wave/WaveManager.cs
+using CR.Wave;
 using System;
 using UnityEngine;
 

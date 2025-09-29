@@ -14,11 +14,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   waveIndex: 1
   targetDuration: 25
+  isBoss: 0
   groups:
   - enemy: {fileID: 11400000, guid: bd501e2eaddab70439865a668e63a23c, type: 2}
     count: 20
     interval: 2
     startTime: 0
+    laneMode: 1
     laneY: 0
-    spawnX: 10
-  isBoss: 0
+    laneList:
+    - 1
+    - 2
+    - 3
+    - 4
+    - 0
+    - -1
+    - -2
+    - -3
+    - -4
+    yRange: {x: 0, y: 0}
+    spawnX: 15
+    intervalJitterPct: {x: 0, y: 0}

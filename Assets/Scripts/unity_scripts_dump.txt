@@ -1,5 +1,5 @@
 ========== UNITY SCRIPT DUMP ==========
-Time : 2025-09-29T18:29:17
+Time : 2025-09-29T23:53:11
 Root : Scripts
 Ext  : .cs
 =======================================
@@ -973,36 +973,52 @@ public class EnemyRegistry : MonoBehaviour
 # ---- END ----
 
 # ==== FILE 23/26: Scripts\Wave\WaveDefinitionSO.cs
-# SIZE: 564 bytes | LINES: 22
+# SIZE: 1173 bytes | LINES: 37
 # ---- BEGIN ----
-// Assets/Scripts/Wave/WaveDefinitionSO.cs
 using System;
 using UnityEngine;
 
-[CreateAssetMenu(menuName = "CR/Wave Definition")]
-public class WaveDefinitionSO : ScriptableObject
+namespace CR.Wave
 {
-    public int waveIndex = 1;
-    public float targetDuration = 25f;
-    [Serializable]
-    public struct Group
+    public enum LaneMode { FixedY, RandomFromList, RandomRangeY }
+
+    [CreateAssetMenu(menuName = "CR/Wave", fileName = "Wave_")]
+    public class WaveDefinitionSO : ScriptableObject
     {
-        public EnemyDefinitionSO enemy;
-        public int count;
-        public float interval;
-        public float startTime;
-        public float laneY;
-        public float spawnX;
+        public int waveIndex;
+        public float targetDuration = 25f;
+        public bool isBoss;
+
+        [Serializable]
+        public struct Group
+        {
+            public EnemyDefinitionSO enemy;
+            [Min(1)] public int count;
+            [Min(0.01f)] public float interval;
+            [Min(0f)] public float startTime;
+
+            [Header("Lane Y")]
+            public LaneMode laneMode;       // NEW
+            public float laneY;             // dùng cho FixedY
+            public float[] laneList;        // dùng khi RandomFromList
+            public Vector2 yRange;          // dùng khi RandomRangeY
+            // Giữ spawnX cũ, KHÔNG random
+            public float spawnX;
+
+            [Header("Timing")]
+            public Vector2 intervalJitterPct; // ±% jitter (tuỳ chọn)
+        }
+
+        public Group[] groups = Array.Empty<Group>();
     }
-    public Group[] groups;
-    public bool isBoss;
 }
 # ---- END ----
 
 # ==== FILE 24/26: Scripts\Wave\WaveManager.cs
-# SIZE: 4585 bytes | LINES: 136
+# SIZE: 4601 bytes | LINES: 137
 # ---- BEGIN ----
 // Assets/Scripts/Wave/WaveManager.cs
+using CR.Wave;
 using System;
 using UnityEngine;
 
@@ -1141,88 +1157,138 @@ public class WaveManager : MonoBehaviour
 # ---- END ----
 
 # ==== FILE 25/26: Scripts\Wave\WaveSpawner.cs
-# SIZE: 2780 bytes | LINES: 82
+# SIZE: 4064 bytes | LINES: 132
 # ---- BEGIN ----
 // Assets/Scripts/Wave/WaveSpawner.cs
+using CR.Wave;
+using System.Collections.Generic;
 using UnityEngine;
+
+[System.Serializable]
+public class EnemyPrefabEntry
+{
+    public EnemyDefinitionSO definition;   // SO của loại enemy
+    public Enemy prefab;                   // Prefab tương ứng
+}
 
 public class WaveSpawner : MonoBehaviour
 {
+    [Header("Mapping SO → Prefab")]
+    public EnemyPrefabEntry[] enemyPrefabs;   // Kéo thả trong Inspector
+
     [Header("Refs")]
-    public Enemy enemyPrefab;
-    public Transform poolRoot;
-    public BaseHealth baseHealth;
+    public Transform poolRoot;                // Container tùy chọn
+    public BaseHealth baseHealth;             // Base để quái tìm đến
 
     [Header("Runtime")]
     public WaveDefinitionSO wave;
-    private ObjectPool<Enemy> pool;
-    private float t;
-    private int[] spawnedPerGroup;
-    private bool active;
+
+    // Nội bộ
+    Dictionary<EnemyDefinitionSO, ObjectPool<Enemy>> _pools;
+    Dictionary<EnemyDefinitionSO, Enemy> _prefabByDef;
+    float _t;
+    int[] _spawnedPerGroup;
+    bool _active;
 
     void Awake()
     {
-        pool = new ObjectPool<Enemy>(enemyPrefab, poolRoot); // dùng ObjectPool có sẵn :contentReference[oaicite:4]{index=4}
+        _pools = new Dictionary<EnemyDefinitionSO, ObjectPool<Enemy>>();
+        _prefabByDef = new Dictionary<EnemyDefinitionSO, Enemy>();
+
+        if (enemyPrefabs == null) return;
+
+        foreach (var entry in enemyPrefabs)
+        {
+            // ✅ dùng so sánh null, KHÔNG dùng !
+            if (entry == null || entry.definition == null || entry.prefab == null)
+                continue;
+
+            _prefabByDef[entry.definition] = entry.prefab;
+            _pools[entry.definition] = new ObjectPool<Enemy>(entry.prefab, poolRoot);
+        }
     }
 
     public void Begin(WaveDefinitionSO def)
     {
         wave = def;
-        if (wave == null) { Debug.LogWarning("[WaveSpawner] Wave null"); return; }
-        t = 0f;
-        spawnedPerGroup = new int[wave.groups.Length];
-        active = true;
+        _t = 0f;
+        _active = true;
+        _spawnedPerGroup = wave != null && wave.groups != null ? new int[wave.groups.Length] : null;
     }
 
     public bool IsFinishedSpawning
     {
         get
         {
-            if (wave == null || spawnedPerGroup == null) return true;
-            for (int i = 0; i < spawnedPerGroup.Length; i++)
-            {
-                if (spawnedPerGroup[i] < wave.groups[i].count) return false;
-            }
+            if (wave == null || _spawnedPerGroup == null) return true;
+            for (int i = 0; i < _spawnedPerGroup.Length; i++)
+                if (_spawnedPerGroup[i] < wave.groups[i].count) return false;
             return true;
         }
     }
 
     void Update()
     {
-        if (!active || wave == null) return;
-        t += Time.deltaTime;
+        if (!_active || wave == null) return;
+        _t += Time.deltaTime;
 
         for (int i = 0; i < wave.groups.Length; i++)
         {
             var g = wave.groups[i];
-            if (t < g.startTime) continue;
+            if (_t < g.startTime) continue;
 
-            // Spawn đều theo interval
-            if (spawnedPerGroup[i] < g.count)
+            if (_spawnedPerGroup[i] < g.count)
             {
-                // Mốc sinh theo đếm số lượng & thời gian
-                int expect = Mathf.FloorToInt((t - g.startTime) / Mathf.Max(0.01f, g.interval)) + 1;
-                int toSpawn = Mathf.Clamp(expect - spawnedPerGroup[i], 0, g.count - spawnedPerGroup[i]);
+                int expect = Mathf.FloorToInt((_t - g.startTime) / Mathf.Max(0.01f, g.interval)) + 1;
+                int toSpawn = Mathf.Clamp(expect - _spawnedPerGroup[i], 0, g.count - _spawnedPerGroup[i]);
                 for (int k = 0; k < toSpawn; k++) SpawnOne(g);
-                spawnedPerGroup[i] += toSpawn;
+                _spawnedPerGroup[i] += toSpawn;
             }
         }
-        // Khi đã spawn xong hết → Spawner có thể idle; Win sẽ do EnemyRegistry báo
-        if (IsFinishedSpawning) active = false;
+
+        if (IsFinishedSpawning) _active = false;
     }
 
-    void SpawnOne(WaveDefinitionSO.Group g)
+    private void SpawnOne(WaveDefinitionSO.Group g)
     {
+        if (!_pools.TryGetValue(g.enemy, out var pool))
+        {
+            Debug.LogError($"[WaveSpawner] Missing prefab mapping for {g.enemy?.name}");
+            return;
+        }
+
         var e = pool.Get();
         e.def = g.enemy;
-        e.targetBase = baseHealth;  // BaseHealth đã có logic HP/Fail :contentReference[oaicite:5]{index=5}
-        e.laneY = g.laneY;
-        e.spawnX = g.spawnX != 0 ? g.spawnX : 10f;
-        e.transform.position = new Vector3(e.spawnX, e.laneY, 0);
+        e.targetBase = baseHealth;
 
-        // YÊU CẦU: Prefab Enemy nên có EnemyHook để đếm số lượng sống trong EnemyRegistry :contentReference[oaicite:6]{index=6}
-        // Nếu prefab chưa có, add tạm:
-        if (!e.GetComponent<EnemyHook>()) e.gameObject.AddComponent<EnemyHook>();
+        float y;
+        switch (g.laneMode)
+        {
+            case LaneMode.RandomFromList:
+                var list = g.laneList != null && g.laneList.Length > 0
+                           ? g.laneList
+                           : new[] { g.laneY };
+                y = list[Random.Range(0, list.Length)];
+                break;
+
+            case LaneMode.RandomRangeY:
+                var yr = g.yRange;
+                if (yr.x > yr.y) (yr.x, yr.y) = (yr.y, yr.x);
+                y = Random.Range(yr.x, yr.y);
+                break;
+
+            default: // FixedY
+                y = g.laneY;
+                break;
+        }
+
+        // Giữ X cố định (spawnX của group)
+        float x = g.spawnX;
+
+        e.transform.position = new Vector3(x, y, 0f);
+
+        if (!e.TryGetComponent<EnemyHook>(out _))
+            e.gameObject.AddComponent<EnemyHook>();
     }
 }
 # ---- END ----
@@ -1240,4 +1306,4 @@ public enum WaveState
 # ---- END ----
 
 ========== SUMMARY ==========
-26 file(s), 1105 lines, 32742 bytes
+26 file(s), 1171 lines, 34651 bytes
