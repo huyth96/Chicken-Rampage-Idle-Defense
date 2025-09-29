@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0da8bef3b51af2b4280532a722980be7, type: 3}
+  m_Name: Soldier
+  m_EditorClassIdentifier: 
+  id: chicken_soldier
+  type: 0
+  baseDamage: 10
+  rateOfFire: 1
+  critChance: 0.1
+  critMultiplier: 2
+  range: 10
+  prioritizeClosest: 1
+  allowThroughWalls: 0
+  projectilePrefab: {fileID: 3587420852616020320, guid: 13eda021a5fd10a4bbd99ba1ac7becd1, type: 3}
+  projectileSpeed: 16
+  areaOfEffect: 0
+  aoeRadius: 0
+  icon: {fileID: -1160785520537796100, guid: 52708eb20ee5d76438326439be446c6c, type: 3}
