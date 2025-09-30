@@ -1,53 +1,84 @@
 ﻿// Assets/Scripts/Combat/Projectile.cs
 using UnityEngine;
 
+/// <summary>
+/// Đạn homing đơn giản:
+/// - Set: damage, speed, target (Transform)
+/// - Tự bay về target; khi chạm thì gây sát thương (và AoE nếu bật).
+/// - Có maxLifetime để tránh "mồ côi".
+/// </summary>
 public class Projectile : MonoBehaviour
 {
-    public long damage;
-    public float speed = 16f;
-    public Transform target;       // mục tiêu tại thời điểm bắn
-    public float maxLife = 3f;     // tránh bay mãi
+    [Header("Flight")]
+    public float speed = 10f;
+    public float maxLifetime = 5f;
 
-    float _life;
+    [Header("Payload")]
+    public long damage;
+    public Transform target;
+
+    [Header("AoE on hit")]
+    public bool areaOfEffect = false;
+    public float aoeRadius = 0f;
+    public LayerMask enemyLayer;
+
+    bool _launched;
 
     void OnEnable()
     {
-        _life = 0f;
+        _launched = true;
+        CancelInvoke();
+        Invoke(nameof(Despawn), maxLifetime);
     }
 
     void Update()
     {
-        _life += Time.deltaTime;
-        if (_life >= maxLife || target == null)
+        if (!_launched) return;
+
+        if (target == null || !target.gameObject.activeInHierarchy)
         {
-            gameObject.SetActive(false);
+            Despawn();
             return;
         }
 
-        Vector3 tpos = target.position;
-        Vector3 dir = (tpos - transform.position);
-        float dist = dir.magnitude;
+        Vector3 to = target.position - transform.position;
+        float dist = to.magnitude;
+        float step = speed * Time.deltaTime;
 
-        if (dist <= speed * Time.deltaTime) // chạm mục tiêu
+        if (dist <= step || dist < 0.01f)
         {
-            HitTarget();
+            // On-hit
+            var enemy = target.GetComponent<Enemy>();
+            if (enemy != null) enemy.TakeDamage(damage);
+
+            if (areaOfEffect && aoeRadius > 0.01f)
+            {
+                var hits = Physics2D.OverlapCircleAll(target.position, aoeRadius, enemyLayer);
+                foreach (var h in hits)
+                {
+                    var e = h.GetComponent<Enemy>();
+                    if (e && (!enemy || e != enemy)) e.TakeDamage(damage);
+                }
+            }
+
+            Despawn();
             return;
         }
 
-        dir.Normalize();
-        transform.position += dir * speed * Time.deltaTime;
-        // optional: xoay đầu đạn hướng theo dir
-        float ang = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-        transform.rotation = Quaternion.Euler(0, 0, ang);
+        Vector3 dir = to / dist;
+        transform.position += dir * step;
+        if (dir.sqrMagnitude > 0.0001f) transform.right = dir; // quay đầu đạn
     }
 
-    void HitTarget()
+    void OnDisable()
     {
-        var enemy = target ? target.GetComponent<Enemy>() : null;
-        if (enemy != null)
-        {
-            enemy.TakeDamage(damage);
-        }
-        gameObject.SetActive(false);
+        CancelInvoke();
+        _launched = false;
+    }
+
+    void Despawn()
+    {
+        _launched = false;
+        Destroy(gameObject); // TODO: đổi sang Object Pool nếu cần
     }
 }

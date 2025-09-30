@@ -14,15 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: chicken_rapid
   type: 1
-  baseDamage: 2
+  baseDamage: 20
   rateOfFire: 5
   critChance: 0.1
   critMultiplier: 2
   range: 8
   prioritizeClosest: 1
   allowThroughWalls: 1
-  projectilePrefab: {fileID: 0}
+  projectilePrefab: {fileID: 3587420852616020320, guid: 13eda021a5fd10a4bbd99ba1ac7becd1, type: 3}
   projectileSpeed: 16
   areaOfEffect: 0
   aoeRadius: 1.5
-  icon: {fileID: 0}
+  basePrice: 100
+  icon: {fileID: -1818940296879234999, guid: baef0946a0e89c146a72980acf628092, type: 3}

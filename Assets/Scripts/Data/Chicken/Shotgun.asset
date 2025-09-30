@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0da8bef3b51af2b4280532a722980be7, type: 3}
-  m_Name: Soldier
+  m_Name: Shotgun
   m_EditorClassIdentifier: 
-  id: chicken_soldier
-  type: 0
+  id: chicken_shotgun
+  type: 3
   baseDamage: 100
   rateOfFire: 1
   critChance: 0.1
@@ -25,4 +25,5 @@ MonoBehaviour:
   projectileSpeed: 16
   areaOfEffect: 0
   aoeRadius: 0
-  icon: {fileID: -1160785520537796100, guid: 52708eb20ee5d76438326439be446c6c, type: 3}
+  basePrice: 100
+  icon: {fileID: -4736198159563196918, guid: 1f33c0353d4209747ae3b4f92dfc8bf3, type: 3}

@@ -1,4 +1,5 @@
 ﻿// Assets/Scripts/Wave/WaveSpawner.cs
+using CR.Wave;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -87,21 +88,45 @@ public class WaveSpawner : MonoBehaviour
         if (IsFinishedSpawning) _active = false;
     }
 
-    void SpawnOne(WaveDefinitionSO.Group g)
+    private void SpawnOne(WaveDefinitionSO.Group g)
     {
-        if (g.enemy == null || !_pools.TryGetValue(g.enemy, out var pool))
+        if (!_pools.TryGetValue(g.enemy, out var pool))
         {
-            Debug.LogError($"[WaveSpawner] No prefab mapped for definition: {g.enemy}");
+            Debug.LogError($"[WaveSpawner] Missing prefab mapping for {g.enemy?.name}");
             return;
         }
 
         var e = pool.Get();
-        e.def = g.enemy;                        // gán SO → Enemy.cs đọc chỉ số từ đây
+        e.def = g.enemy;
         e.targetBase = baseHealth;
-        e.laneY = g.laneY;
-        e.spawnX = g.spawnX != 0 ? g.spawnX : 10f;
-        e.transform.position = new Vector3(e.spawnX, e.laneY, 0);
 
-        if (!e.GetComponent<EnemyHook>()) e.gameObject.AddComponent<EnemyHook>(); // để EnemyRegistry đếm
+        float y;
+        switch (g.laneMode)
+        {
+            case LaneMode.RandomFromList:
+                var list = g.laneList != null && g.laneList.Length > 0
+                           ? g.laneList
+                           : new[] { g.laneY };
+                y = list[Random.Range(0, list.Length)];
+                break;
+
+            case LaneMode.RandomRangeY:
+                var yr = g.yRange;
+                if (yr.x > yr.y) (yr.x, yr.y) = (yr.y, yr.x);
+                y = Random.Range(yr.x, yr.y);
+                break;
+
+            default: // FixedY
+                y = g.laneY;
+                break;
+        }
+
+        // Giữ X cố định (spawnX của group)
+        float x = g.spawnX;
+
+        e.transform.position = new Vector3(x, y, 0f);
+
+        if (!e.TryGetComponent<EnemyHook>(out _))
+            e.gameObject.AddComponent<EnemyHook>();
     }
 }

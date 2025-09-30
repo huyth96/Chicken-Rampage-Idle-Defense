@@ -9,32 +9,84 @@ public class EquipSlots : MonoBehaviour
     public class Slot
     {
         public Transform mountPoint;    // nơi đặt prefab gà (empty child)
-        public ChickenUnit current;     // instance đang gắn (runtime)
+        public ChickenUnit current;     // instance runtime
+    }
+
+    [Serializable]
+    public struct PrefabMap
+    {
+        public ChickenType type;        // Soldier/Rapid/Sniper/Shotgun/Rocket/Support
+        public ChickenUnit prefab;      // prefab riêng cho loại đó (nếu có)
     }
 
     [Header("Slots (5)")]
     public Slot[] slots = new Slot[5];
 
-    [Header("Prefab gà mặc định")]
-    public ChickenUnit chickenPrefab; // prefab có ChickenUnit + sprite/renderer
+    [Header("Prefab mặc định (fallback)")]
+    public ChickenUnit chickenPrefab;
 
-    public int SlotCount => slots != null ? slots.Length : 0;
+    [Header("Prefab theo loại (tuỳ chọn)")]
+    public PrefabMap[] typePrefabs;     // map type -> prefab riêng (ưu tiên dùng)
 
+    public int SlotCount => slots?.Length ?? 0;
     public bool IsValidIndex(int index) => index >= 0 && index < SlotCount;
+
+    // Sự kiện UI có thể nghe để cập nhật icon/hud
+    public event Action OnRosterChanged;
+    public event Action<int, ChickenUnit> OnAssigned;
+    public event Action<int> OnRemoved;
+
+    // ========== Public helpers ==========
+    public bool IsEmpty(int index) => IsValidIndex(index) && slots[index].current == null;
+
+    public bool HasEmpty()
+    {
+        for (int i = 0; i < SlotCount; i++) if (IsEmpty(i)) return true;
+        return false;
+    }
+
+    public int FirstEmptyIndex()
+    {
+        for (int i = 0; i < SlotCount; i++) if (IsEmpty(i)) return i;
+        return -1;
+    }
+
+    public ChickenUnit AssignFirstEmpty(ChickenDefinitionSO def)
+    {
+        int idx = FirstEmptyIndex();
+        return idx >= 0 ? Assign(idx, def) : null;
+    }
+
+    // ========== Core ==========
 
     public ChickenUnit Assign(int slotIndex, ChickenDefinitionSO def)
     {
-        if (!IsValidIndex(slotIndex) || def == null || chickenPrefab == null) return null;
+        if (!IsValidIndex(slotIndex) || def == null) return null;
 
-        // Clear nếu đã có
+        var prefab = GetPrefabFor(def);
+        if (prefab == null)
+        {
+            Debug.LogWarning("[EquipSlots] Missing prefab for " + def.name);
+            return null;
+        }
+
+        // Clear slot cũ (nếu có)
         Remove(slotIndex);
 
+        // Spawn mới
         var s = slots[slotIndex];
-        var inst = Instantiate(chickenPrefab, s.mountPoint != null ? s.mountPoint : transform);
+        var parent = s.mountPoint != null ? s.mountPoint : transform;
+
+        var inst = Instantiate(prefab, parent);
         inst.transform.localPosition = Vector3.zero;
-        inst.def = def;
+        inst.transform.localRotation = Quaternion.identity;
+        inst.transform.localScale = Vector3.one;
+
+        inst.def = def;  // 👈 bind loại gà (stat/behaviour lấy từ def)
         s.current = inst;
 
+        OnAssigned?.Invoke(slotIndex, inst);
+        OnRosterChanged?.Invoke();
         return inst;
     }
 
@@ -44,8 +96,10 @@ public class EquipSlots : MonoBehaviour
         var s = slots[slotIndex];
         if (s.current != null)
         {
-            Destroy(s.current.gameObject);
+            Destroy(s.current.gameObject); // TODO: đổi sang pool nếu cần
             s.current = null;
+            OnRemoved?.Invoke(slotIndex);
+            OnRosterChanged?.Invoke();
         }
     }
 
@@ -65,6 +119,20 @@ public class EquipSlots : MonoBehaviour
         return dps;
     }
 
-    // (tùy chọn) Lưu/đọc roster rất gọn: lưu id SO theo Resources path hoặc GUID.
-    // Ở bản Sprint 2 này mình để runtime; bạn có thể gắn vào SaveManager sau.
+    // ========== Internal ==========
+
+    ChickenUnit GetPrefabFor(ChickenDefinitionSO def)
+    {
+        // Ưu tiên prefab theo loại (nếu map)
+        if (typePrefabs != null)
+        {
+            for (int i = 0; i < typePrefabs.Length; i++)
+            {
+                if (typePrefabs[i].prefab != null && typePrefabs[i].type == def.type)
+                    return typePrefabs[i].prefab;
+            }
+        }
+        // Fallback về prefab mặc định
+        return chickenPrefab;
+    }
 }

@@ -9,12 +9,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0762c9ca0e9236e4290d0a6ed0afc2b7, type: 3}
-  m_Name: Enemy_Basic
+  m_Script: {fileID: 11500000, guid: 1f4e0d902b3d18647acf209290e723ac, type: 3}
+  m_Name: Team
   m_EditorClassIdentifier: 
-  id: zombie_basic
-  baseHP: 30
-  moveSpeed: 1.5
-  touchDamage: 10
-  bounty: 10000
-  isBoss: 0
+  id: team
+  displayName: Team
+  kind: 0
+  typeTarget: 0
+  baseCost: 2000
+  growth: 1.22
+  teamDamagePct: 0.08
+  teamASPct: 0.06
+  eggSeconds: 0.2
+  mpsValue: 2
+  discountPct: 0.03
+  perTypeDpsPct: 0.1
