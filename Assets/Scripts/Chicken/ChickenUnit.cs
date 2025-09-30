@@ -18,14 +18,43 @@ public class ChickenUnit : MonoBehaviour
     float _scanTimer;
     Enemy _currentTarget;
 
-    // DPS lý thuyết = dmg * (1 + critChance*(critMul-1)) * ROF
+    // ===== Multiplier helpers (null-safe) =====
+    float TeamDamageMul() => UpgradeManager.I ? UpgradeManager.I.TeamDamageMul() : 1f;
+    float TeamASMul() => UpgradeManager.I ? UpgradeManager.I.TeamASMul() : 1f;
+    float PerTypeMul() => (UpgradeManager.I && def) ? UpgradeManager.I.PerTypeMul(def.type) : 1f;
+
+    float EffectiveCooldown()
+    {
+        if (def == null) return 9999f;
+        float rofEff = Mathf.Max(0.01f, def.rateOfFire * TeamASMul());
+        return 1f / rofEff;
+    }
+
+    long DamagePerShot(float critMul)
+    {
+        if (def == null) return 0;
+        double dmg = (double)def.baseDamage * TeamDamageMul() * PerTypeMul() * critMul;
+        if (dmg < 0d) dmg = 0d;
+        if (dmg > long.MaxValue) dmg = long.MaxValue;
+        return (long)Math.Round(dmg);
+    }
+
+    float RollCritMul()
+    {
+        if (def == null || def.critChance <= 0f || def.critMultiplier <= 1f) return 1f;
+        return (UnityEngine.Random.value < def.critChance) ? def.critMultiplier : 1f;
+    }
+
+    // DPS lý thuyết = dmg * (1 + critChance*(critMul-1)) * ROF * multipliers
     public float TheoreticalDPS
     {
         get
         {
+            if (def == null) return 0f;
             double avgCritMul = 1.0 + (double)def.critChance * ((double)def.critMultiplier - 1.0);
-            double perShot = (double)def.baseDamage * avgCritMul;
-            return (float)(perShot * (double)def.rateOfFire);
+            double perShot = (double)def.baseDamage * TeamDamageMul() * PerTypeMul() * avgCritMul;
+            double dps = perShot * (double)(def.rateOfFire * TeamASMul());
+            return (float)dps;
         }
     }
 
@@ -41,7 +70,7 @@ public class ChickenUnit : MonoBehaviour
             AcquireTarget();
         }
 
-        // Bắn
+        // Mất mục tiêu nếu ra khỏi tầm/không active
         if (_currentTarget != null)
         {
             float dist = Vector3.Distance(transform.position, _currentTarget.transform.position);
@@ -51,11 +80,12 @@ public class ChickenUnit : MonoBehaviour
             }
         }
 
+        // Bắn
         _cooldown -= Time.deltaTime;
         if (_currentTarget != null && _cooldown <= 0f)
         {
             FireAt(_currentTarget);
-            _cooldown = 1f / Mathf.Max(0.01f, def.rateOfFire);
+            _cooldown = EffectiveCooldown(); // đã nhân Team AS
         }
     }
 
@@ -68,7 +98,7 @@ public class ChickenUnit : MonoBehaviour
             // quét tròn bằng Physics2D
             var hits = Physics2D.OverlapCircleAll(center, def.range, enemyLayer);
             Enemy best = null;
-            float bestScore = float.PositiveInfinity; // dùng khoảng cách làm score
+            float bestScore = float.PositiveInfinity; // khoảng cách làm score
 
             foreach (var h in hits)
             {
@@ -82,7 +112,7 @@ public class ChickenUnit : MonoBehaviour
                 }
                 else
                 {
-                    // có thể thêm chiến lược khác sau này (tiến gần Base nhất, v.v.)
+                    // TODO: có thể đổi sang tiêu chí "gần Base nhất" sau
                     if (d < bestScore) { best = e; bestScore = d; }
                 }
             }
@@ -110,7 +140,8 @@ public class ChickenUnit : MonoBehaviour
     {
         if (target == null) return;
 
-        long damage = RollDamage();
+        float critMul = RollCritMul();
+        long damage = DamagePerShot(critMul); // đã nhân Team/PerType
 
         // Nếu có projectile prefab => bắn đạn
         if (def.projectilePrefab != null)
@@ -119,6 +150,11 @@ public class ChickenUnit : MonoBehaviour
             proj.damage = damage;
             proj.speed = def.projectileSpeed;
             proj.target = target.transform;
+
+            // Truyền thông tin AoE & mask (để xử lý khi va chạm)
+            proj.areaOfEffect = def.areaOfEffect;
+            proj.aoeRadius = def.aoeRadius;
+            proj.enemyLayer = enemyLayer;
         }
         else
         {
@@ -127,12 +163,12 @@ public class ChickenUnit : MonoBehaviour
             {
                 Vector2 dir = (target.transform.position - transform.position).normalized;
                 float dist = Vector3.Distance(transform.position, target.transform.position);
-                var hit = Physics2D.Raycast(transform.position, dir, dist, enemyLayer);
-                // nếu cần check tường, bạn tạo LayerMask cho "Wall" và raycast hai lần
+                // Nếu có Layer tường riêng bạn thêm mask chặn vào đây
+                Physics2D.Raycast(transform.position, dir, dist);
             }
             target.TakeDamage(damage);
 
-            // nếu AoE
+            // AoE instant
             if (def.areaOfEffect && def.aoeRadius > 0.01f)
             {
                 var hits = Physics2D.OverlapCircleAll(target.transform.position, def.aoeRadius, enemyLayer);
@@ -145,16 +181,6 @@ public class ChickenUnit : MonoBehaviour
         }
     }
 
-    long RollDamage()
-    {
-        bool isCrit = UnityEngine.Random.value < def.critChance;
-        double mul = isCrit ? (double)def.critMultiplier : 1.0;
-        double val = (double)def.baseDamage * mul;
-        if (val <= long.MinValue) return long.MinValue;
-        if (val >= long.MaxValue) return long.MaxValue;
-        return (long)System.Math.Round(val);
-    }
-
 #if UNITY_EDITOR
     void OnDrawGizmosSelected()
     {
@@ -164,6 +190,7 @@ public class ChickenUnit : MonoBehaviour
         if (def.areaOfEffect)
         {
             Gizmos.color = new Color(1f, 0.5f, 0.1f, 0.8f);
+            // vẽ minh hoạ AOE ngay cạnh gà (chỉ là gizmo tham khảo)
             Gizmos.DrawWireSphere(transform.position + Vector3.right * 0.5f, Mathf.Max(0.1f, def.aoeRadius));
         }
     }

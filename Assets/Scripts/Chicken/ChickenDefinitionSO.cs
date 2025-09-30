@@ -24,7 +24,8 @@ public class ChickenDefinitionSO : ScriptableObject
     public float projectileSpeed = 16f;
     public bool areaOfEffect = false;
     public float aoeRadius = 1.5f;
-
+    [Header("Shop")]
+    public long basePrice = 100; // chỉnh theo loại gà
     [Header("Visuals")]
     public Sprite icon;
 }

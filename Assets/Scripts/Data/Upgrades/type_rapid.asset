@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f4e0d902b3d18647acf209290e723ac, type: 3}
+  m_Name: type_rapid
+  m_EditorClassIdentifier: 
+  id: type_rapid
+  displayName: rapid
+  kind: 1
+  typeTarget: 1
+  baseCost: 2000
+  growth: 1.22
+  teamDamagePct: 0.08
+  teamASPct: 0.06
+  eggSeconds: 0.2
+  mpsValue: 2
+  discountPct: 0.03
+  perTypeDpsPct: 0.1

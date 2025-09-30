@@ -1,11 +1,11 @@
 ========== UNITY SCRIPT DUMP ==========
-Time : 2025-09-29T23:53:11
+Time : 2025-09-30T01:35:22
 Root : Scripts
 Ext  : .cs
 =======================================
 
-# ==== FILE 1/26: Scripts\Chicken\ChickenDefinitionSO.cs
-# SIZE: 1054 bytes | LINES: 30
+# ==== FILE 1/31: Scripts\Chicken\ChickenDefinitionSO.cs
+# SIZE: 1135 bytes | LINES: 31
 # ---- BEGIN ----
 // Assets/Scripts/Chicken/ChickenDefinitionSO.cs
 using UnityEngine;
@@ -33,13 +33,14 @@ public class ChickenDefinitionSO : ScriptableObject
     public float projectileSpeed = 16f;
     public bool areaOfEffect = false;
     public float aoeRadius = 1.5f;
-
+    [Header("Shop")]
+    public long basePrice = 100; // chỉnh theo loại gà
     [Header("Visuals")]
     public Sprite icon;
 }
 # ---- END ----
 
-# ==== FILE 2/26: Scripts\Chicken\ChickenType.cs
+# ==== FILE 2/31: Scripts\Chicken\ChickenType.cs
 # SIZE: 341 bytes | LINES: 12
 # ---- BEGIN ----
 // Assets/Scripts/Chicken/ChickenType.cs
@@ -56,8 +57,8 @@ public enum ChickenType
 }
 # ---- END ----
 
-# ==== FILE 3/26: Scripts\Chicken\ChickenUnit.cs
-# SIZE: 5793 bytes | LINES: 171
+# ==== FILE 3/31: Scripts\Chicken\ChickenUnit.cs
+# SIZE: 6965 bytes | LINES: 198
 # ---- BEGIN ----
 // Assets/Scripts/Chicken/ChickenUnit.cs
 using System;
@@ -79,14 +80,43 @@ public class ChickenUnit : MonoBehaviour
     float _scanTimer;
     Enemy _currentTarget;
 
-    // DPS lý thuyết = dmg * (1 + critChance*(critMul-1)) * ROF
+    // ===== Multiplier helpers (null-safe) =====
+    float TeamDamageMul() => UpgradeManager.I ? UpgradeManager.I.TeamDamageMul() : 1f;
+    float TeamASMul() => UpgradeManager.I ? UpgradeManager.I.TeamASMul() : 1f;
+    float PerTypeMul() => (UpgradeManager.I && def) ? UpgradeManager.I.PerTypeMul(def.type) : 1f;
+
+    float EffectiveCooldown()
+    {
+        if (def == null) return 9999f;
+        float rofEff = Mathf.Max(0.01f, def.rateOfFire * TeamASMul());
+        return 1f / rofEff;
+    }
+
+    long DamagePerShot(float critMul)
+    {
+        if (def == null) return 0;
+        double dmg = (double)def.baseDamage * TeamDamageMul() * PerTypeMul() * critMul;
+        if (dmg < 0d) dmg = 0d;
+        if (dmg > long.MaxValue) dmg = long.MaxValue;
+        return (long)Math.Round(dmg);
+    }
+
+    float RollCritMul()
+    {
+        if (def == null || def.critChance <= 0f || def.critMultiplier <= 1f) return 1f;
+        return (UnityEngine.Random.value < def.critChance) ? def.critMultiplier : 1f;
+    }
+
+    // DPS lý thuyết = dmg * (1 + critChance*(critMul-1)) * ROF * multipliers
     public float TheoreticalDPS
     {
         get
         {
+            if (def == null) return 0f;
             double avgCritMul = 1.0 + (double)def.critChance * ((double)def.critMultiplier - 1.0);
-            double perShot = (double)def.baseDamage * avgCritMul;
-            return (float)(perShot * (double)def.rateOfFire);
+            double perShot = (double)def.baseDamage * TeamDamageMul() * PerTypeMul() * avgCritMul;
+            double dps = perShot * (double)(def.rateOfFire * TeamASMul());
+            return (float)dps;
         }
     }
 
@@ -102,7 +132,7 @@ public class ChickenUnit : MonoBehaviour
             AcquireTarget();
         }
 
-        // Bắn
+        // Mất mục tiêu nếu ra khỏi tầm/không active
         if (_currentTarget != null)
         {
             float dist = Vector3.Distance(transform.position, _currentTarget.transform.position);
@@ -112,11 +142,12 @@ public class ChickenUnit : MonoBehaviour
             }
         }
 
+        // Bắn
         _cooldown -= Time.deltaTime;
         if (_currentTarget != null && _cooldown <= 0f)
         {
             FireAt(_currentTarget);
-            _cooldown = 1f / Mathf.Max(0.01f, def.rateOfFire);
+            _cooldown = EffectiveCooldown(); // đã nhân Team AS
         }
     }
 
@@ -129,7 +160,7 @@ public class ChickenUnit : MonoBehaviour
             // quét tròn bằng Physics2D
             var hits = Physics2D.OverlapCircleAll(center, def.range, enemyLayer);
             Enemy best = null;
-            float bestScore = float.PositiveInfinity; // dùng khoảng cách làm score
+            float bestScore = float.PositiveInfinity; // khoảng cách làm score
 
             foreach (var h in hits)
             {
@@ -143,7 +174,7 @@ public class ChickenUnit : MonoBehaviour
                 }
                 else
                 {
-                    // có thể thêm chiến lược khác sau này (tiến gần Base nhất, v.v.)
+                    // TODO: có thể đổi sang tiêu chí "gần Base nhất" sau
                     if (d < bestScore) { best = e; bestScore = d; }
                 }
             }
@@ -171,7 +202,8 @@ public class ChickenUnit : MonoBehaviour
     {
         if (target == null) return;
 
-        long damage = RollDamage();
+        float critMul = RollCritMul();
+        long damage = DamagePerShot(critMul); // đã nhân Team/PerType
 
         // Nếu có projectile prefab => bắn đạn
         if (def.projectilePrefab != null)
@@ -180,6 +212,11 @@ public class ChickenUnit : MonoBehaviour
             proj.damage = damage;
             proj.speed = def.projectileSpeed;
             proj.target = target.transform;
+
+            // Truyền thông tin AoE & mask (để xử lý khi va chạm)
+            proj.areaOfEffect = def.areaOfEffect;
+            proj.aoeRadius = def.aoeRadius;
+            proj.enemyLayer = enemyLayer;
         }
         else
         {
@@ -188,12 +225,12 @@ public class ChickenUnit : MonoBehaviour
             {
                 Vector2 dir = (target.transform.position - transform.position).normalized;
                 float dist = Vector3.Distance(transform.position, target.transform.position);
-                var hit = Physics2D.Raycast(transform.position, dir, dist, enemyLayer);
-                // nếu cần check tường, bạn tạo LayerMask cho "Wall" và raycast hai lần
+                // Nếu có Layer tường riêng bạn thêm mask chặn vào đây
+                Physics2D.Raycast(transform.position, dir, dist);
             }
             target.TakeDamage(damage);
 
-            // nếu AoE
+            // AoE instant
             if (def.areaOfEffect && def.aoeRadius > 0.01f)
             {
                 var hits = Physics2D.OverlapCircleAll(target.transform.position, def.aoeRadius, enemyLayer);
@@ -206,16 +243,6 @@ public class ChickenUnit : MonoBehaviour
         }
     }
 
-    long RollDamage()
-    {
-        bool isCrit = UnityEngine.Random.value < def.critChance;
-        double mul = isCrit ? (double)def.critMultiplier : 1.0;
-        double val = (double)def.baseDamage * mul;
-        if (val <= long.MinValue) return long.MinValue;
-        if (val >= long.MaxValue) return long.MaxValue;
-        return (long)System.Math.Round(val);
-    }
-
 #if UNITY_EDITOR
     void OnDrawGizmosSelected()
     {
@@ -225,6 +252,7 @@ public class ChickenUnit : MonoBehaviour
         if (def.areaOfEffect)
         {
             Gizmos.color = new Color(1f, 0.5f, 0.1f, 0.8f);
+            // vẽ minh hoạ AOE ngay cạnh gà (chỉ là gizmo tham khảo)
             Gizmos.DrawWireSphere(transform.position + Vector3.right * 0.5f, Mathf.Max(0.1f, def.aoeRadius));
         }
     }
@@ -232,8 +260,8 @@ public class ChickenUnit : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 4/26: Scripts\Chicken\EquipSlots.cs
-# SIZE: 2054 bytes | LINES: 70
+# ==== FILE 4/31: Scripts\Chicken\EquipSlots.cs
+# SIZE: 4132 bytes | LINES: 138
 # ---- BEGIN ----
 // Assets/Scripts/Chicken/EquipSlots.cs
 using System;
@@ -246,32 +274,84 @@ public class EquipSlots : MonoBehaviour
     public class Slot
     {
         public Transform mountPoint;    // nơi đặt prefab gà (empty child)
-        public ChickenUnit current;     // instance đang gắn (runtime)
+        public ChickenUnit current;     // instance runtime
+    }
+
+    [Serializable]
+    public struct PrefabMap
+    {
+        public ChickenType type;        // Soldier/Rapid/Sniper/Shotgun/Rocket/Support
+        public ChickenUnit prefab;      // prefab riêng cho loại đó (nếu có)
     }
 
     [Header("Slots (5)")]
     public Slot[] slots = new Slot[5];
 
-    [Header("Prefab gà mặc định")]
-    public ChickenUnit chickenPrefab; // prefab có ChickenUnit + sprite/renderer
+    [Header("Prefab mặc định (fallback)")]
+    public ChickenUnit chickenPrefab;
 
-    public int SlotCount => slots != null ? slots.Length : 0;
+    [Header("Prefab theo loại (tuỳ chọn)")]
+    public PrefabMap[] typePrefabs;     // map type -> prefab riêng (ưu tiên dùng)
 
+    public int SlotCount => slots?.Length ?? 0;
     public bool IsValidIndex(int index) => index >= 0 && index < SlotCount;
+
+    // Sự kiện UI có thể nghe để cập nhật icon/hud
+    public event Action OnRosterChanged;
+    public event Action<int, ChickenUnit> OnAssigned;
+    public event Action<int> OnRemoved;
+
+    // ========== Public helpers ==========
+    public bool IsEmpty(int index) => IsValidIndex(index) && slots[index].current == null;
+
+    public bool HasEmpty()
+    {
+        for (int i = 0; i < SlotCount; i++) if (IsEmpty(i)) return true;
+        return false;
+    }
+
+    public int FirstEmptyIndex()
+    {
+        for (int i = 0; i < SlotCount; i++) if (IsEmpty(i)) return i;
+        return -1;
+    }
+
+    public ChickenUnit AssignFirstEmpty(ChickenDefinitionSO def)
+    {
+        int idx = FirstEmptyIndex();
+        return idx >= 0 ? Assign(idx, def) : null;
+    }
+
+    // ========== Core ==========
 
     public ChickenUnit Assign(int slotIndex, ChickenDefinitionSO def)
     {
-        if (!IsValidIndex(slotIndex) || def == null || chickenPrefab == null) return null;
+        if (!IsValidIndex(slotIndex) || def == null) return null;
 
-        // Clear nếu đã có
+        var prefab = GetPrefabFor(def);
+        if (prefab == null)
+        {
+            Debug.LogWarning("[EquipSlots] Missing prefab for " + def.name);
+            return null;
+        }
+
+        // Clear slot cũ (nếu có)
         Remove(slotIndex);
 
+        // Spawn mới
         var s = slots[slotIndex];
-        var inst = Instantiate(chickenPrefab, s.mountPoint != null ? s.mountPoint : transform);
+        var parent = s.mountPoint != null ? s.mountPoint : transform;
+
+        var inst = Instantiate(prefab, parent);
         inst.transform.localPosition = Vector3.zero;
-        inst.def = def;
+        inst.transform.localRotation = Quaternion.identity;
+        inst.transform.localScale = Vector3.one;
+
+        inst.def = def;  // 👈 bind loại gà (stat/behaviour lấy từ def)
         s.current = inst;
 
+        OnAssigned?.Invoke(slotIndex, inst);
+        OnRosterChanged?.Invoke();
         return inst;
     }
 
@@ -281,8 +361,10 @@ public class EquipSlots : MonoBehaviour
         var s = slots[slotIndex];
         if (s.current != null)
         {
-            Destroy(s.current.gameObject);
+            Destroy(s.current.gameObject); // TODO: đổi sang pool nếu cần
             s.current = null;
+            OnRemoved?.Invoke(slotIndex);
+            OnRosterChanged?.Invoke();
         }
     }
 
@@ -302,12 +384,26 @@ public class EquipSlots : MonoBehaviour
         return dps;
     }
 
-    // (tùy chọn) Lưu/đọc roster rất gọn: lưu id SO theo Resources path hoặc GUID.
-    // Ở bản Sprint 2 này mình để runtime; bạn có thể gắn vào SaveManager sau.
+    // ========== Internal ==========
+
+    ChickenUnit GetPrefabFor(ChickenDefinitionSO def)
+    {
+        // Ưu tiên prefab theo loại (nếu map)
+        if (typePrefabs != null)
+        {
+            for (int i = 0; i < typePrefabs.Length; i++)
+            {
+                if (typePrefabs[i].prefab != null && typePrefabs[i].type == def.type)
+                    return typePrefabs[i].prefab;
+            }
+        }
+        // Fallback về prefab mặc định
+        return chickenPrefab;
+    }
 }
 # ---- END ----
 
-# ==== FILE 5/26: Scripts\Chicken\TeamAutoAssign.cs
+# ==== FILE 5/31: Scripts\Chicken\TeamAutoAssign.cs
 # SIZE: 344 bytes | LINES: 16
 # ---- BEGIN ----
 using UnityEngine;
@@ -328,7 +424,7 @@ public class TeamAutoAssign : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 6/26: Scripts\Combat\BaseHealth.cs
+# ==== FILE 6/31: Scripts\Combat\BaseHealth.cs
 # SIZE: 731 bytes | LINES: 28
 # ---- BEGIN ----
 using System;
@@ -361,7 +457,7 @@ public class BaseHealth : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 7/26: Scripts\Combat\Enemy\Enemy.cs
+# ==== FILE 7/31: Scripts\Combat\Enemy\Enemy.cs
 # SIZE: 1505 bytes | LINES: 52
 # ---- BEGIN ----
 // Enemy.cs
@@ -418,7 +514,7 @@ public class Enemy : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 8/26: Scripts\Combat\Enemy\EnemyDefinitionSO.cs
+# ==== FILE 8/31: Scripts\Combat\Enemy\EnemyDefinitionSO.cs
 # SIZE: 410 bytes | LINES: 12
 # ---- BEGIN ----
 using UnityEngine;
@@ -435,65 +531,96 @@ public class EnemyDefinitionSO : ScriptableObject
 }
 # ---- END ----
 
-# ==== FILE 9/26: Scripts\Combat\Projectile.cs
-# SIZE: 1355 bytes | LINES: 53
+# ==== FILE 9/31: Scripts\Combat\Projectile.cs
+# SIZE: 2211 bytes | LINES: 84
 # ---- BEGIN ----
 // Assets/Scripts/Combat/Projectile.cs
 using UnityEngine;
 
+/// <summary>
+/// Đạn homing đơn giản:
+/// - Set: damage, speed, target (Transform)
+/// - Tự bay về target; khi chạm thì gây sát thương (và AoE nếu bật).
+/// - Có maxLifetime để tránh "mồ côi".
+/// </summary>
 public class Projectile : MonoBehaviour
 {
-    public long damage;
-    public float speed = 16f;
-    public Transform target;       // mục tiêu tại thời điểm bắn
-    public float maxLife = 3f;     // tránh bay mãi
+    [Header("Flight")]
+    public float speed = 10f;
+    public float maxLifetime = 5f;
 
-    float _life;
+    [Header("Payload")]
+    public long damage;
+    public Transform target;
+
+    [Header("AoE on hit")]
+    public bool areaOfEffect = false;
+    public float aoeRadius = 0f;
+    public LayerMask enemyLayer;
+
+    bool _launched;
 
     void OnEnable()
     {
-        _life = 0f;
+        _launched = true;
+        CancelInvoke();
+        Invoke(nameof(Despawn), maxLifetime);
     }
 
     void Update()
     {
-        _life += Time.deltaTime;
-        if (_life >= maxLife || target == null)
+        if (!_launched) return;
+
+        if (target == null || !target.gameObject.activeInHierarchy)
         {
-            gameObject.SetActive(false);
+            Despawn();
             return;
         }
 
-        Vector3 tpos = target.position;
-        Vector3 dir = (tpos - transform.position);
-        float dist = dir.magnitude;
+        Vector3 to = target.position - transform.position;
+        float dist = to.magnitude;
+        float step = speed * Time.deltaTime;
 
-        if (dist <= speed * Time.deltaTime) // chạm mục tiêu
+        if (dist <= step || dist < 0.01f)
         {
-            HitTarget();
+            // On-hit
+            var enemy = target.GetComponent<Enemy>();
+            if (enemy != null) enemy.TakeDamage(damage);
+
+            if (areaOfEffect && aoeRadius > 0.01f)
+            {
+                var hits = Physics2D.OverlapCircleAll(target.position, aoeRadius, enemyLayer);
+                foreach (var h in hits)
+                {
+                    var e = h.GetComponent<Enemy>();
+                    if (e && (!enemy || e != enemy)) e.TakeDamage(damage);
+                }
+            }
+
+            Despawn();
             return;
         }
 
-        dir.Normalize();
-        transform.position += dir * speed * Time.deltaTime;
-        // optional: xoay đầu đạn hướng theo dir
-        float ang = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-        transform.rotation = Quaternion.Euler(0, 0, ang);
+        Vector3 dir = to / dist;
+        transform.position += dir * step;
+        if (dir.sqrMagnitude > 0.0001f) transform.right = dir; // quay đầu đạn
     }
 
-    void HitTarget()
+    void OnDisable()
     {
-        var enemy = target ? target.GetComponent<Enemy>() : null;
-        if (enemy != null)
-        {
-            enemy.TakeDamage(damage);
-        }
-        gameObject.SetActive(false);
+        CancelInvoke();
+        _launched = false;
+    }
+
+    void Despawn()
+    {
+        _launched = false;
+        Destroy(gameObject); // TODO: đổi sang Object Pool nếu cần
     }
 }
 # ---- END ----
 
-# ==== FILE 10/26: Scripts\Core\Economy\EconomyManager.cs
+# ==== FILE 10/31: Scripts\Core\Economy\EconomyManager.cs
 # SIZE: 883 bytes | LINES: 35
 # ---- BEGIN ----
 using System;
@@ -533,7 +660,7 @@ public class EconomyManager : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 11/26: Scripts\Core\Save\SaveData.cs
+# ==== FILE 11/31: Scripts\Core\Save\SaveData.cs
 # SIZE: 598 bytes | LINES: 24
 # ---- BEGIN ----
 using System;
@@ -562,7 +689,7 @@ public class SaveData
 }
 # ---- END ----
 
-# ==== FILE 12/26: Scripts\Core\Save\SaveManager.cs
+# ==== FILE 12/31: Scripts\Core\Save\SaveManager.cs
 # SIZE: 3281 bytes | LINES: 98
 # ---- BEGIN ----
 using System;
@@ -665,7 +792,7 @@ public static class SaveManager
 }
 # ---- END ----
 
-# ==== FILE 13/26: Scripts\Core\Utils\DebugHotkeys.cs
+# ==== FILE 13/31: Scripts\Core\Utils\DebugHotkeys.cs
 # SIZE: 442 bytes | LINES: 15
 # ---- BEGIN ----
 #if UNITY_EDITOR
@@ -685,7 +812,7 @@ public class DebugHotkeys : MonoBehaviour
 #endif
 # ---- END ----
 
-# ==== FILE 14/26: Scripts\Core\Utils\ObjectPool.cs
+# ==== FILE 14/31: Scripts\Core\Utils\ObjectPool.cs
 # SIZE: 642 bytes | LINES: 28
 # ---- BEGIN ----
 using System.Collections.Generic;
@@ -718,7 +845,7 @@ public class ObjectPool<T> where T : Component
 }
 # ---- END ----
 
-# ==== FILE 15/26: Scripts\Core\Utils\SaveBootstrapper.cs
+# ==== FILE 15/31: Scripts\Core\Utils\SaveBootstrapper.cs
 # SIZE: 646 bytes | LINES: 27
 # ---- BEGIN ----
 using System;
@@ -750,7 +877,7 @@ public class SaveBootstrapper : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 16/26: Scripts\Data\Progress\ProgressionCurveSO.cs
+# ==== FILE 16/31: Scripts\Data\Progress\ProgressionCurveSO.cs
 # SIZE: 700 bytes | LINES: 16
 # ---- BEGIN ----
 using UnityEngine;
@@ -771,7 +898,76 @@ public class ProgressionCurveSO : ScriptableObject
 
 # ---- END ----
 
-# ==== FILE 17/26: Scripts\UI\BaseHPBinder.cs
+# ==== FILE 17/31: Scripts\Shop\ShopManager.cs
+# SIZE: 2117 bytes | LINES: 64
+# ---- BEGIN ----
+using System;
+using UnityEngine;
+
+public class ShopManager : MonoBehaviour
+{
+    public static ShopManager I { get; private set; }
+    void Awake() { if (I && I != this) { Destroy(gameObject); return; } I = this; DontDestroyOnLoad(gameObject); }
+
+    [Header("Refs")]
+    public EquipSlots equipSlots;   // 5 slot có sẵn
+    public UpgradeManager upgrades; // để đọc discount
+
+    public event Action<ChickenDefinitionSO> OnChickenPurchased;
+
+    const string KEY_BOUGHT = "__stat_total_chicken_bought";
+
+    int TotalBought()
+    {
+        var dict = SaveManager.Data.teamUpgrades; // tái dùng map có sẵn
+        return dict != null && dict.TryGetValue(KEY_BOUGHT, out var v) ? v : 0;
+    }
+    void IncBought()
+    {
+        var dict = SaveManager.Data.teamUpgrades;
+        if (!dict.ContainsKey(KEY_BOUGHT)) dict[KEY_BOUGHT] = 0;
+        dict[KEY_BOUGHT] += 1;
+        SaveManager.MarkDirtyAndSave();
+    }
+
+    public long GetChickenPrice(ChickenDefinitionSO def)
+    {
+        if (!def) return long.MaxValue;
+        int total = TotalBought();
+        double price = Math.Max(1, def.basePrice) * Math.Pow(1.15, total);
+        float disc = Mathf.Min(0.5f, upgrades?.TeamDiscountFrac() ?? 0f); // cap 50%
+        price *= (1.0 - disc);
+        return (long)Math.Round(price);
+    }
+
+    public bool TryBuyChicken(ChickenDefinitionSO def)
+    {
+        long price = GetChickenPrice(def);
+        if (!EconomyManager.I.TrySpend(price)) return false;
+
+        IncBought();
+
+        // ưu tiên gán vào EquipSlots còn trống
+        if (equipSlots)
+        {
+            for (int i = 0; i < equipSlots.SlotCount; i++)
+            {
+                if (equipSlots.slots[i].current == null)
+                {
+                    equipSlots.Assign(i, def);
+                    OnChickenPurchased?.Invoke(def);
+                    return true;
+                }
+            }
+        }
+        // Nếu Equip full: phát sự kiện để Prepare/Inventory nhận
+        OnChickenPurchased?.Invoke(def);
+        return true;
+    }
+}
+# ---- END ----
+
+# ==== FILE 18/31: Scripts\UI\BaseHPBinder.cs
 # SIZE: 282 bytes | LINES: 14
 # ---- BEGIN ----
 using TMPro;
@@ -790,7 +986,129 @@ public class BaseHPBinder : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 18/26: Scripts\UI\HUDCoinBinder.cs
+# ==== FILE 19/31: Scripts\UI\ChickenShopPanel.cs
+# SIZE: 3999 bytes | LINES: 117
+# ---- BEGIN ----
+// Assets/Scripts/UI/ChickenShopPanel.cs
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class ChickenShopPanel : MonoBehaviour
+{
+    [Header("Refs")]
+    public ShopManager shop;                 // drag từ scene (_Systems)
+    public UpgradeManager upgrades;          // drag từ scene (_Systems)
+
+    [Header("Chicken Catalog")]
+    public ChickenDefinitionSO[] chickens;   // danh sách gà bán
+
+    [Header("UI Bindings (1-1 với chickens)")]
+    public Button[] buyButtons;              // mỗi con gà 1 nút Buy
+    public TMP_Text[] priceTexts;            // label giá
+    public TMP_Text[] nameTexts;             // label tên (optional)
+    public TMP_Text[] dpsTexts;              // DPS lý thuyết (optional)
+
+    [Header("Refresh")]
+    public float uiRefreshInterval = 0.25f;  // tối ưu thay vì Update mỗi frame
+    float _t;
+
+    void Awake()
+    {
+        // Wire click
+        for (int i = 0; i < chickens.Length; i++)
+        {
+            int idx = i;
+            if (buyButtons != null && idx < buyButtons.Length && buyButtons[idx] != null)
+                buyButtons[idx].onClick.AddListener(() => OnBuy(idx));
+        }
+
+        // Nếu EconomyManager có OnCoinChanged thì lắng nghe để refresh tức thì
+        TrySubscribeCoinEvent();
+    }
+
+    void OnEnable()
+    {
+        RefreshAll();
+    }
+
+    void Update()
+    {
+        _t += Time.deltaTime;
+        if (_t >= uiRefreshInterval)
+        {
+            _t = 0f;
+            RefreshAll();
+        }
+    }
+
+    void OnDestroy()
+    {
+        TryUnsubscribeCoinEvent();
+    }
+
+    void OnBuy(int idx)
+    {
+        if (idx < 0 || idx >= chickens.Length) return;
+        if (shop != null && chickens[idx] != null)
+        {
+            bool ok = shop.TryBuyChicken(chickens[idx]);
+            if (ok) RefreshAll();
+        }
+    }
+
+    void RefreshAll()
+    {
+        if (shop == null || chickens == null) return;
+
+        for (int i = 0; i < chickens.Length; i++)
+        {
+            var c = chickens[i];
+            if (!c) continue;
+
+            long price = shop.GetChickenPrice(c);
+
+            if (priceTexts != null && i < priceTexts.Length && priceTexts[i] != null)
+                priceTexts[i].text = price.ToString();
+
+            if (nameTexts != null && i < nameTexts.Length && nameTexts[i] != null)
+                nameTexts[i].text = string.IsNullOrEmpty(c.name) ? $"Chicken {i + 1}" : c.name;
+
+            if (dpsTexts != null && i < dpsTexts.Length && dpsTexts[i] != null)
+            {
+                // DPS preview: dùng công thức giống ChickenUnit
+                double avgCritMul = 1.0 + (double)c.critChance * ((double)c.critMultiplier - 1.0);
+                float dmgMul = (UpgradeManager.I ? UpgradeManager.I.TeamDamageMul() : 1f)
+                              * (UpgradeManager.I ? UpgradeManager.I.PerTypeMul(c.type) : 1f);
+                float asMul = (UpgradeManager.I ? UpgradeManager.I.TeamASMul() : 1f);
+                double perShot = (double)c.baseDamage * dmgMul * avgCritMul;
+                double dps = perShot * (double)(c.rateOfFire * asMul);
+                dpsTexts[i].text = Mathf.RoundToInt((float)dps).ToString();
+            }
+
+            // enable/disable nút theo coin
+            if (buyButtons != null && i < buyButtons.Length && buyButtons[i] != null)
+            {
+                bool canAfford = EconomyManager.I ? (EconomyManager.I.Coin >= price) : true;
+                buyButtons[i].interactable = canAfford;
+            }
+        }
+    }
+
+    void TrySubscribeCoinEvent()
+    {
+        if (EconomyManager.I == null) return;
+        EconomyManager.I.OnCoinChanged += _ => RefreshAll();
+    }
+    void TryUnsubscribeCoinEvent()
+    {
+        if (EconomyManager.I == null) return;
+        EconomyManager.I.OnCoinChanged -= _ => RefreshAll(); // không hại nếu không trùng delegate
+    }
+}
+# ---- END ----
+
+# ==== FILE 20/31: Scripts\UI\HUDCoinBinder.cs
 # SIZE: 659 bytes | LINES: 28
 # ---- BEGIN ----
 using TMPro;
@@ -823,7 +1141,7 @@ public class HUDCoinBinder : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 19/26: Scripts\UI\ResultPanelController.cs
+# ==== FILE 21/31: Scripts\UI\ResultPanelController.cs
 # SIZE: 1202 bytes | LINES: 49
 # ---- BEGIN ----
 // Assets/Scripts/UI/ResultPanelController.cs
@@ -877,7 +1195,7 @@ public class ResultPanelController : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 20/26: Scripts\UI\StartMenuController.cs
+# ==== FILE 22/31: Scripts\UI\StartMenuController.cs
 # SIZE: 529 bytes | LINES: 26
 # ---- BEGIN ----
 using UnityEngine;
@@ -908,7 +1226,267 @@ public class StartMenuController : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 21/26: Scripts\Wave\EnemyHook.cs
+# ==== FILE 23/31: Scripts\Upgrades\UpgradeDefinitionSO.cs
+# SIZE: 829 bytes | LINES: 24
+# ---- BEGIN ----
+using UnityEngine;
+public enum UpgradeKind { Team, PerType }
+
+[CreateAssetMenu(menuName = "CR/Upgrades/Definition")]
+public class UpgradeDefinitionSO : ScriptableObject
+{
+    [Header("Meta")]
+    public string id;
+    public string displayName;
+    public UpgradeKind kind;
+    public ChickenType typeTarget; // dùng nếu PerType
+
+    [Header("Economy")]
+    public long baseCost = 2000;
+    public float growth = 1.22f; // team dmg/as 1.22; mps 1.30; per-type 1.25
+
+    [Header("Effect per level")]
+    public float teamDamagePct = 0.08f; // 8%/lv
+    public float teamASPct = 0.06f; // 6%/lv
+    public float eggSeconds = 0.2f;  // 0.2s/lv
+    public long mpsValue = 2;     // 2 coin/s/lv
+    public float discountPct = 0.03f; // 3%/lv (cap 50%)
+    public float perTypeDpsPct = 0.10f; // 10%/lv
+}
+# ---- END ----
+
+# ==== FILE 24/31: Scripts\Upgrades\UpgradeIds.cs
+# SIZE: 524 bytes | LINES: 12
+# ---- BEGIN ----
+public static class UpgradeIds
+{
+    // Team
+    public const string Team_Damage = "team_damage";       // +8%/lv
+    public const string Team_AS = "team_attack_speed"; // +6%/lv
+    public const string Team_EggSpeed = "team_egg_speed";    // -0.2s/lv
+    public const string Team_MPS = "team_mps";          // +2 coin/s/lv
+    public const string Team_Discount = "team_discount";     // -3%/lv (cap 50%)
+
+    // Per-type
+    public static string TypeKey(ChickenType t) => $"type_{t.ToString().ToLower()}";
+}
+# ---- END ----
+
+# ==== FILE 25/31: Scripts\Upgrades\UpgradeManager.cs
+# SIZE: 7348 bytes | LINES: 209
+# ---- BEGIN ----
+// Assets/Scripts/Upgrades/UpgradeManager.cs
+// Sprint 4 - Upgrade core (Team + Per-Type)
+// - Quản lý level, giá nâng cấp, và xuất các multiplier/effect để hệ thống khác dùng.
+// - Phụ thuộc: SaveManager (Data.teamUpgrades/typeUpgrades), EconomyManager (TrySpend),
+//              UpgradeDefinitionSO[], UpgradeIds, ChickenType.
+//
+// HƯỚNG DẪN INSPECTOR:
+//   - Gắn script này lên 1 GameObject tồn tại suốt game (ví dụ _Systems).
+//   - Kéo TẤT CẢ các asset UpgradeDefinitionSO vào mảng 'upgradeDefs'.
+//   - Team IDs dùng: team_damage, team_attack_speed, team_egg_speed, team_mps, team_discount
+//   - Per-type IDs dùng: type_soldier, type_rapid, type_sniper, type_shotgun, type_rocket, type_support
+//
+// API CHÍNH:
+//   int   GetLevel(string id)
+//   long  GetPriceNext(string id)         // baseCost * growth^level
+//   bool  TryBuy(string id)               // trừ coin & tăng level
+//
+//   float TeamDamageMul()  // (1 + 0.08)^lv
+//   float TeamASMul()      // (1 + 0.06)^lv
+//   float TeamDiscountFrac() // lv*0.03 (áp cap 50% khi TÍNH GIÁ GÀ, thực hiện ở ShopManager)
+//   float TeamEggSeconds() // lv*0.2s  (dùng giảm thời gian tải trứng)
+//   long  TeamMPS()        // lv*2 coin/s
+//   float PerTypeMul(ChickenType t) // (1+0.10)^lv theo từng loại gà
+//
+// GỢI Ý HOOK:
+//   - Damage mỗi viên = baseDamage * TeamDamageMul() * PerTypeMul(type) * critMul
+//   - ROF hiệu dụng   = baseROF * TeamASMul()
+//   - Ticker MPS: mỗi giây EconomyManager.I.AddCoin(TeamMPS());
+
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class UpgradeManager : MonoBehaviour
+{
+    public static UpgradeManager I { get; private set; }
+
+    [Header("Database")]
+    [Tooltip("Kéo tất cả UpgradeDefinitionSO (team + per-type) vào đây")]
+    public UpgradeDefinitionSO[] upgradeDefs;
+
+    // Tra cứu nhanh theo id
+    private Dictionary<string, UpgradeDefinitionSO> _byId;
+
+    // ========================================
+    // Unity lifecycle
+    // ========================================
+    private void Awake()
+    {
+        if (I != null && I != this) { Destroy(gameObject); return; }
+        I = this;
+        DontDestroyOnLoad(gameObject);
+
+        // Build index
+        _byId = new Dictionary<string, UpgradeDefinitionSO>(StringComparer.Ordinal);
+        if (upgradeDefs != null)
+        {
+            foreach (var d in upgradeDefs)
+            {
+                if (d == null || string.IsNullOrEmpty(d.id)) continue;
+                _byId[d.id] = d;
+            }
+        }
+
+        // Ensure save maps
+        if (SaveManager.Data.teamUpgrades == null) SaveManager.Data.teamUpgrades = new Dictionary<string, int>();
+        if (SaveManager.Data.typeUpgrades == null) SaveManager.Data.typeUpgrades = new Dictionary<string, int>();
+    }
+
+    // ========================================
+    // Level: get/set + persist
+    // ========================================
+    public int GetLevel(string id)
+    {
+        if (string.IsNullOrEmpty(id) || !_byId.ContainsKey(id)) return 0;
+
+        var def = _byId[id];
+        if (def.kind == UpgradeKind.Team)
+        {
+            return SaveManager.Data.teamUpgrades.TryGetValue(id, out var lv) ? lv : 0;
+        }
+        else // PerType
+        {
+            return SaveManager.Data.typeUpgrades.TryGetValue(id, out var lv) ? lv : 0;
+        }
+    }
+
+    private void SetLevel(string id, int level)
+    {
+        if (string.IsNullOrEmpty(id) || !_byId.ContainsKey(id)) return;
+
+        level = Mathf.Max(0, level);
+        var def = _byId[id];
+
+        if (def.kind == UpgradeKind.Team)
+        {
+            SaveManager.Data.teamUpgrades[id] = level;
+        }
+        else
+        {
+            SaveManager.Data.typeUpgrades[id] = level;
+        }
+        Persist();
+    }
+
+    private static void Persist()
+    {
+        // Dùng SaveManager.Save() để tương thích mã sẵn có của bạn
+        SaveManager.Save();
+    }
+
+    // ========================================
+    // Giá nâng cấp & mua
+    // ========================================
+    public long GetPriceNext(string id)
+    {
+        if (string.IsNullOrEmpty(id) || !_byId.TryGetValue(id, out var def)) return long.MaxValue;
+
+        int lv = GetLevel(id);
+        double cost = def.baseCost * Math.Pow(def.growth, lv);
+        if (cost < 1d) cost = 1d;
+        return (long)Math.Round(cost);
+    }
+
+    public bool TryBuy(string id)
+    {
+        long price = GetPriceNext(id);
+        if (!EconomyManager.I.TrySpend(price)) return false;
+
+        SetLevel(id, GetLevel(id) + 1);
+        return true;
+    }
+
+    // ========================================
+    // Query: Team multipliers/effects
+    // ========================================
+    public float TeamDamageMul()
+    {
+        if (!_byId.TryGetValue(UpgradeIds.Team_Damage, out var d)) return 1f;
+        int lv = GetLevel(d.id);
+        return Mathf.Pow(1f + d.teamDamagePct, lv);
+    }
+
+    public float TeamASMul()
+    {
+        if (!_byId.TryGetValue(UpgradeIds.Team_AS, out var d)) return 1f;
+        int lv = GetLevel(d.id);
+        return Mathf.Pow(1f + d.teamASPct, lv);
+    }
+
+    /// <summary>
+    /// Tổng phần trăm giảm giá (0..1). Khi tính giá gà nhớ áp CAP 50% (min với 0.5f).
+    /// </summary>
+    public float TeamDiscountFrac()
+    {
+        if (!_byId.TryGetValue(UpgradeIds.Team_Discount, out var d)) return 0f;
+        int lv = GetLevel(d.id);
+        float total = lv * d.discountPct; // vd 3%/lv
+        return Mathf.Max(0f, total);
+    }
+
+    /// <summary>
+    /// Tổng số giây giảm vào thời gian nạp trứng (Egg Load). Tuỳ nơi dùng.
+    /// </summary>
+    public float TeamEggSeconds()
+    {
+        if (!_byId.TryGetValue(UpgradeIds.Team_EggSpeed, out var d)) return 0f;
+        int lv = GetLevel(d.id);
+        return lv * d.eggSeconds;
+    }
+
+    /// <summary>
+    /// Tổng coin/s cộng thêm.
+    /// </summary>
+    public long TeamMPS()
+    {
+        if (!_byId.TryGetValue(UpgradeIds.Team_MPS, out var d)) return 0;
+        int lv = GetLevel(d.id);
+        long v = lv * d.mpsValue;
+        return v < 0 ? 0 : v;
+    }
+
+    // ========================================
+    // Query: Per-type multiplier
+    // ========================================
+    public float PerTypeMul(ChickenType type)
+    {
+        string id = UpgradeIds.TypeKey(type);
+        if (!_byId.TryGetValue(id, out var d)) return 1f;
+        int lv = GetLevel(id);
+        return Mathf.Pow(1f + d.perTypeDpsPct, lv);
+    }
+
+    // ========================================
+    // Tiện ích (tùy chọn): kiểm tra asset/ID
+    // ========================================
+#if UNITY_EDITOR
+    [ContextMenu("Validate Upgrade IDs in Console")]
+    private void ValidateInConsole()
+    {
+        foreach (var kv in _byId)
+        {
+            var d = kv.Value;
+            string extra = d.kind == UpgradeKind.PerType ? $" (PerType:{d.typeTarget})" : " (Team)";
+            Debug.Log($"[UpgradeDef] id={d.id} base={d.baseCost} growth={d.growth}{extra}");
+        }
+    }
+#endif
+}
+# ---- END ----
+
+# ==== FILE 26/31: Scripts\Wave\EnemyHook.cs
 # SIZE: 413 bytes | LINES: 17
 # ---- BEGIN ----
 // Assets/Scripts/Wave/EnemyHook.cs
@@ -930,7 +1508,7 @@ public class EnemyHook : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 22/26: Scripts\Wave\EnemyRegistry.cs
+# ==== FILE 27/31: Scripts\Wave\EnemyRegistry.cs
 # SIZE: 841 bytes | LINES: 37
 # ---- BEGIN ----
 using System;
@@ -972,7 +1550,7 @@ public class EnemyRegistry : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 23/26: Scripts\Wave\WaveDefinitionSO.cs
+# ==== FILE 28/31: Scripts\Wave\WaveDefinitionSO.cs
 # SIZE: 1173 bytes | LINES: 37
 # ---- BEGIN ----
 using System;
@@ -1014,7 +1592,7 @@ namespace CR.Wave
 }
 # ---- END ----
 
-# ==== FILE 24/26: Scripts\Wave\WaveManager.cs
+# ==== FILE 29/31: Scripts\Wave\WaveManager.cs
 # SIZE: 4601 bytes | LINES: 137
 # ---- BEGIN ----
 // Assets/Scripts/Wave/WaveManager.cs
@@ -1156,7 +1734,7 @@ public class WaveManager : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 25/26: Scripts\Wave\WaveSpawner.cs
+# ==== FILE 30/31: Scripts\Wave\WaveSpawner.cs
 # SIZE: 4064 bytes | LINES: 132
 # ---- BEGIN ----
 // Assets/Scripts/Wave/WaveSpawner.cs
@@ -1293,7 +1871,7 @@ public class WaveSpawner : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 26/26: Scripts\Wave\WaveState.cs
+# ==== FILE 31/31: Scripts\Wave\WaveState.cs
 # SIZE: 108 bytes | LINES: 7
 # ---- BEGIN ----
 // Assets/Scripts/Wave/WaveState.cs
@@ -1306,4 +1884,4 @@ public enum WaveState
 # ---- END ----
 
 ========== SUMMARY ==========
-26 file(s), 1171 lines, 34651 bytes
+31 file(s), 1724 lines, 53655 bytes

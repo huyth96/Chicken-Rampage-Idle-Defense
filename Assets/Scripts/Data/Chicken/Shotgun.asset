@@ -10,20 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0da8bef3b51af2b4280532a722980be7, type: 3}
-  m_Name: Rapid
+  m_Name: Shotgun
   m_EditorClassIdentifier: 
-  id: chicken_rapid
-  type: 1
-  baseDamage: 20
-  rateOfFire: 5
+  id: chicken_shotgun
+  type: 3
+  baseDamage: 100
+  rateOfFire: 1
   critChance: 0.1
   critMultiplier: 2
-  range: 8
+  range: 20
   prioritizeClosest: 1
-  allowThroughWalls: 1
+  allowThroughWalls: 0
   projectilePrefab: {fileID: 3587420852616020320, guid: 13eda021a5fd10a4bbd99ba1ac7becd1, type: 3}
   projectileSpeed: 16
   areaOfEffect: 0
-  aoeRadius: 1.5
+  aoeRadius: 0
   basePrice: 100
-  icon: {fileID: -1818940296879234999, guid: baef0946a0e89c146a72980acf628092, type: 3}
+  icon: {fileID: -4736198159563196918, guid: 1f33c0353d4209747ae3b4f92dfc8bf3, type: 3}

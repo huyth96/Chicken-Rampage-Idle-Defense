@@ -18,7 +18,6 @@ GameObject:
   - component: {fileID: 1171436056270500689}
   - component: {fileID: 7889889360573278965}
   - component: {fileID: -4133247306779680678}
-  - component: {fileID: -6566601644355297290}
   m_Layer: 6
   m_Name: Dog01
   m_TagString: Enemy
@@ -157,7 +156,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: -0.2732727, y: 1.1784636}
+  m_Offset: {x: -0.27327275, y: 1.1784636}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0}
@@ -167,7 +166,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 1.6357774, y: 1.4461591}
+  m_Size: {x: 3.635777, y: 3.4461591}
   m_EdgeRadius: 0
 --- !u!95 &9131716217032104656
 Animator:
@@ -260,15 +259,3 @@ MonoBehaviour:
   targetBase: {fileID: 0}
   laneY: 0
   spawnX: 10
---- !u!114 &-6566601644355297290
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6393542029028847428}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 53db74b2d2bad2b43aff5f4a61bb0d65, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
