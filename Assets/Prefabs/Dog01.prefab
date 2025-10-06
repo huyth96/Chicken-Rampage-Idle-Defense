@@ -18,6 +18,7 @@ GameObject:
   - component: {fileID: 1171436056270500689}
   - component: {fileID: 7889889360573278965}
   - component: {fileID: -4133247306779680678}
+  - component: {fileID: -6158808980608000439}
   m_Layer: 6
   m_Name: Dog01
   m_TagString: Enemy
@@ -259,3 +260,15 @@ MonoBehaviour:
   targetBase: {fileID: 0}
   laneY: 0
   spawnX: 10
+--- !u!114 &-6158808980608000439
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6393542029028847428}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83d3530736e1cdb4da25b734b798f59b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
