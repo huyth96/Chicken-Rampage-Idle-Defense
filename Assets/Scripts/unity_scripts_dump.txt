@@ -1,10 +1,10 @@
 ========== UNITY SCRIPT DUMP ==========
-Time : 2025-09-30T01:35:22
+Time : 2025-10-06T16:53:59
 Root : Scripts
 Ext  : .cs
 =======================================
 
-# ==== FILE 1/31: Scripts\Chicken\ChickenDefinitionSO.cs
+# ==== FILE 1/32: Scripts\Chicken\ChickenDefinitionSO.cs
 # SIZE: 1135 bytes | LINES: 31
 # ---- BEGIN ----
 // Assets/Scripts/Chicken/ChickenDefinitionSO.cs
@@ -40,7 +40,7 @@ public class ChickenDefinitionSO : ScriptableObject
 }
 # ---- END ----
 
-# ==== FILE 2/31: Scripts\Chicken\ChickenType.cs
+# ==== FILE 2/32: Scripts\Chicken\ChickenType.cs
 # SIZE: 341 bytes | LINES: 12
 # ---- BEGIN ----
 // Assets/Scripts/Chicken/ChickenType.cs
@@ -57,7 +57,7 @@ public enum ChickenType
 }
 # ---- END ----
 
-# ==== FILE 3/31: Scripts\Chicken\ChickenUnit.cs
+# ==== FILE 3/32: Scripts\Chicken\ChickenUnit.cs
 # SIZE: 6965 bytes | LINES: 198
 # ---- BEGIN ----
 // Assets/Scripts/Chicken/ChickenUnit.cs
@@ -260,7 +260,7 @@ public class ChickenUnit : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 4/31: Scripts\Chicken\EquipSlots.cs
+# ==== FILE 4/32: Scripts\Chicken\EquipSlots.cs
 # SIZE: 4132 bytes | LINES: 138
 # ---- BEGIN ----
 // Assets/Scripts/Chicken/EquipSlots.cs
@@ -403,7 +403,7 @@ public class EquipSlots : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 5/31: Scripts\Chicken\TeamAutoAssign.cs
+# ==== FILE 5/32: Scripts\Chicken\TeamAutoAssign.cs
 # SIZE: 344 bytes | LINES: 16
 # ---- BEGIN ----
 using UnityEngine;
@@ -424,7 +424,7 @@ public class TeamAutoAssign : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 6/31: Scripts\Combat\BaseHealth.cs
+# ==== FILE 6/32: Scripts\Combat\BaseHealth.cs
 # SIZE: 731 bytes | LINES: 28
 # ---- BEGIN ----
 using System;
@@ -457,7 +457,7 @@ public class BaseHealth : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 7/31: Scripts\Combat\Enemy\Enemy.cs
+# ==== FILE 7/32: Scripts\Combat\Enemy\Enemy.cs
 # SIZE: 1505 bytes | LINES: 52
 # ---- BEGIN ----
 // Enemy.cs
@@ -514,7 +514,7 @@ public class Enemy : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 8/31: Scripts\Combat\Enemy\EnemyDefinitionSO.cs
+# ==== FILE 8/32: Scripts\Combat\Enemy\EnemyDefinitionSO.cs
 # SIZE: 410 bytes | LINES: 12
 # ---- BEGIN ----
 using UnityEngine;
@@ -531,7 +531,7 @@ public class EnemyDefinitionSO : ScriptableObject
 }
 # ---- END ----
 
-# ==== FILE 9/31: Scripts\Combat\Projectile.cs
+# ==== FILE 9/32: Scripts\Combat\Projectile.cs
 # SIZE: 2211 bytes | LINES: 84
 # ---- BEGIN ----
 // Assets/Scripts/Combat/Projectile.cs
@@ -620,7 +620,7 @@ public class Projectile : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 10/31: Scripts\Core\Economy\EconomyManager.cs
+# ==== FILE 10/32: Scripts\Core\Economy\EconomyManager.cs
 # SIZE: 883 bytes | LINES: 35
 # ---- BEGIN ----
 using System;
@@ -660,7 +660,7 @@ public class EconomyManager : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 11/31: Scripts\Core\Save\SaveData.cs
+# ==== FILE 11/32: Scripts\Core\Save\SaveData.cs
 # SIZE: 598 bytes | LINES: 24
 # ---- BEGIN ----
 using System;
@@ -689,7 +689,7 @@ public class SaveData
 }
 # ---- END ----
 
-# ==== FILE 12/31: Scripts\Core\Save\SaveManager.cs
+# ==== FILE 12/32: Scripts\Core\Save\SaveManager.cs
 # SIZE: 3281 bytes | LINES: 98
 # ---- BEGIN ----
 using System;
@@ -792,7 +792,7 @@ public static class SaveManager
 }
 # ---- END ----
 
-# ==== FILE 13/31: Scripts\Core\Utils\DebugHotkeys.cs
+# ==== FILE 13/32: Scripts\Core\Utils\DebugHotkeys.cs
 # SIZE: 442 bytes | LINES: 15
 # ---- BEGIN ----
 #if UNITY_EDITOR
@@ -812,7 +812,7 @@ public class DebugHotkeys : MonoBehaviour
 #endif
 # ---- END ----
 
-# ==== FILE 14/31: Scripts\Core\Utils\ObjectPool.cs
+# ==== FILE 14/32: Scripts\Core\Utils\ObjectPool.cs
 # SIZE: 642 bytes | LINES: 28
 # ---- BEGIN ----
 using System.Collections.Generic;
@@ -845,7 +845,7 @@ public class ObjectPool<T> where T : Component
 }
 # ---- END ----
 
-# ==== FILE 15/31: Scripts\Core\Utils\SaveBootstrapper.cs
+# ==== FILE 15/32: Scripts\Core\Utils\SaveBootstrapper.cs
 # SIZE: 646 bytes | LINES: 27
 # ---- BEGIN ----
 using System;
@@ -877,7 +877,7 @@ public class SaveBootstrapper : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 16/31: Scripts\Data\Progress\ProgressionCurveSO.cs
+# ==== FILE 16/32: Scripts\Data\Progress\ProgressionCurveSO.cs
 # SIZE: 700 bytes | LINES: 16
 # ---- BEGIN ----
 using UnityEngine;
@@ -898,7 +898,7 @@ public class ProgressionCurveSO : ScriptableObject
 
 # ---- END ----
 
-# ==== FILE 17/31: Scripts\Shop\ShopManager.cs
+# ==== FILE 17/32: Scripts\Shop\ShopManager.cs
 # SIZE: 2117 bytes | LINES: 64
 # ---- BEGIN ----
 using System;
@@ -967,7 +967,7 @@ public class ShopManager : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 18/31: Scripts\UI\BaseHPBinder.cs
+# ==== FILE 18/32: Scripts\UI\BaseHPBinder.cs
 # SIZE: 282 bytes | LINES: 14
 # ---- BEGIN ----
 using TMPro;
@@ -986,7 +986,7 @@ public class BaseHPBinder : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 19/31: Scripts\UI\ChickenShopPanel.cs
+# ==== FILE 19/32: Scripts\UI\ChickenShopPanel.cs
 # SIZE: 3999 bytes | LINES: 117
 # ---- BEGIN ----
 // Assets/Scripts/UI/ChickenShopPanel.cs
@@ -1108,7 +1108,7 @@ public class ChickenShopPanel : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 20/31: Scripts\UI\HUDCoinBinder.cs
+# ==== FILE 20/32: Scripts\UI\HUDCoinBinder.cs
 # SIZE: 659 bytes | LINES: 28
 # ---- BEGIN ----
 using TMPro;
@@ -1141,30 +1141,62 @@ public class HUDCoinBinder : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 21/31: Scripts\UI\ResultPanelController.cs
-# SIZE: 1202 bytes | LINES: 49
+# ==== FILE 21/32: Scripts\UI\ResultPanelController.cs
+# SIZE: 3143 bytes | LINES: 110
 # ---- BEGIN ----
 // Assets/Scripts/UI/ResultPanelController.cs
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ResultPanelController : MonoBehaviour
 {
+    [Header("Refs")]
     public WaveManager wm;
     public GameObject root;
-    public TMP_Text title;
-    public TMP_Text waveText;
 
-    void Start()
+    [Header("Texts")]
+    public TMP_Text title;      // "WAVE 10 CLEARED!" hoặc "FAIL!"
+    public TMP_Text killText;   // "76"
+    public TMP_Text earnText;   // "20,000k" (format tuỳ bạn)
+    public TMP_Text waveText;   // "Wave 10" (tuỳ UI)
+
+    [Header("Buttons")]
+    public Button claimBtn;     // nút Claim
+    public Button claim2xBtn;   // nút Claim 2x (tuỳ UI)
+    public Button retryBtn;     // nút Retry khi fail
+
+    void Awake()
     {
         if (root) root.SetActive(false);
+
+        if (claimBtn)
+        {
+            claimBtn.onClick.RemoveAllListeners();
+            claimBtn.onClick.AddListener(() => OnClaim(1f));
+        }
+        if (claim2xBtn)
+        {
+            claim2xBtn.onClick.RemoveAllListeners();
+            claim2xBtn.onClick.AddListener(() => OnClaim(2f));
+        }
+        if (retryBtn)
+        {
+            retryBtn.onClick.RemoveAllListeners();
+            retryBtn.onClick.AddListener(OnRetry);
+        }
+    }
+
+    void OnEnable()
+    {
         if (wm)
         {
             wm.OnWin += ShowWin;
             wm.OnFail += ShowFail;
         }
     }
-    void OnDestroy()
+
+    void OnDisable()
     {
         if (wm)
         {
@@ -1177,25 +1209,54 @@ public class ResultPanelController : MonoBehaviour
     {
         if (!root) return;
         root.SetActive(true);
-        if (title) title.text = "WIN!";
-        if (waveText) waveText.text = $"Wave {wm.CurrentWave - 1} cleared";
+
+        if (title) title.text = $"WAVE {wm.ResultWaveIndex} CLEARED!";
+        if (waveText) waveText.text = $"Wave {wm.ResultWaveIndex}";
+        if (killText) killText.text = $"{wm.ResultTotalKill}";
+        if (earnText) earnText.text = $"{wm.ResultWaveReward:N0}";
+
+        // Bật claim, tắt retry
+        if (claimBtn) claimBtn.gameObject.SetActive(true);
+        if (claim2xBtn) claim2xBtn?.gameObject.SetActive(true);
+        if (retryBtn) retryBtn.gameObject.SetActive(false);
+
+        // Khoá nút nếu không thể claim (phòng ngừa)
+        if (claimBtn) claimBtn.interactable = wm.CanClaim;
+        if (claim2xBtn) claim2xBtn.interactable = wm.CanClaim;
     }
 
     void ShowFail()
     {
         if (!root) return;
         root.SetActive(true);
+
         if (title) title.text = "FAIL!";
         if (waveText) waveText.text = $"Failed at Wave {wm.CurrentWave}";
+        if (killText) killText.text = "-";
+        if (earnText) earnText.text = "0";
+
+        // Ẩn claim, hiện retry
+        if (claimBtn) claimBtn.gameObject.SetActive(false);
+        if (claim2xBtn) claim2xBtn?.gameObject.SetActive(false);
+        if (retryBtn) retryBtn.gameObject.SetActive(true);
+        if (retryBtn) retryBtn.interactable = true;
     }
 
-    // Hook UI buttons
-    public void OnClaim() { wm.ClaimAndContinue(); if (root) root.SetActive(false); }
-    public void OnRetry() { wm.Retry(); if (root) root.SetActive(false); }
+    void OnClaim(float multiplier)
+    {
+        wm.ClaimAndContinue(multiplier);
+        if (root) root.SetActive(false);
+    }
+
+    void OnRetry()
+    {
+        wm.Retry();
+        if (root) root.SetActive(false);
+    }
 }
 # ---- END ----
 
-# ==== FILE 22/31: Scripts\UI\StartMenuController.cs
+# ==== FILE 22/32: Scripts\UI\StartMenuController.cs
 # SIZE: 529 bytes | LINES: 26
 # ---- BEGIN ----
 using UnityEngine;
@@ -1226,7 +1287,162 @@ public class StartMenuController : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 23/31: Scripts\Upgrades\UpgradeDefinitionSO.cs
+# ==== FILE 23/32: Scripts\UI\UpgradeShopPanel.cs
+# SIZE: 4918 bytes | LINES: 150
+# ---- BEGIN ----
+// Assets/Scripts/UI/UpgradeShopPanel.cs
+using TMPro;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class UpgradeShopPanel : MonoBehaviour
+{
+    [Header("Refs")]
+    public UpgradeManager upgrades;  // drag từ scene (_Systems)
+
+    [Header("Team Upgrades")]
+    public string[] teamIds = {
+        UpgradeIds.Team_Damage,
+        UpgradeIds.Team_AS,
+        UpgradeIds.Team_EggSpeed,
+        UpgradeIds.Team_MPS,
+        UpgradeIds.Team_Discount
+    };
+    public Button[] teamButtons;
+    public TMP_Text[] teamPriceTexts;
+    public TMP_Text[] teamLevelTexts;
+    public TMP_Text[] teamNameTexts; // optional đẹp UI
+
+    [Header("Per-Type Upgrades")]
+    public ChickenType[] perTypes = {
+        ChickenType.Soldier, ChickenType.Rapid, ChickenType.Sniper,
+        ChickenType.Shotgun, ChickenType.Rocket, ChickenType.Support
+    };
+    public Button[] typeButtons;
+    public TMP_Text[] typePriceTexts;
+    public TMP_Text[] typeLevelTexts;
+    public TMP_Text[] typeNameTexts; // optional
+
+    [Header("Refresh")]
+    public float uiRefreshInterval = 0.25f;
+    float _t;
+
+    void Awake()
+    {
+        // Wire team
+        for (int i = 0; i < teamIds.Length; i++)
+        {
+            int idx = i;
+            if (teamButtons != null && idx < teamButtons.Length && teamButtons[idx] != null)
+                teamButtons[idx].onClick.AddListener(() => OnBuyTeam(teamIds[idx]));
+        }
+
+        // Wire per-type
+        for (int i = 0; i < perTypes.Length; i++)
+        {
+            int idx = i;
+            if (typeButtons != null && idx < typeButtons.Length && typeButtons[idx] != null)
+                typeButtons[idx].onClick.AddListener(() => OnBuyType(perTypes[idx]));
+        }
+
+        TrySubscribeCoinEvent();
+    }
+
+    void OnEnable() { RefreshAll(); }
+    void OnDestroy() { TryUnsubscribeCoinEvent(); }
+
+    void Update()
+    {
+        _t += Time.deltaTime;
+        if (_t >= uiRefreshInterval)
+        {
+            _t = 0f;
+            RefreshAll();
+        }
+    }
+
+    void OnBuyTeam(string id)
+    {
+        if (upgrades != null && !string.IsNullOrEmpty(id))
+        {
+            bool ok = upgrades.TryBuy(id);
+            if (ok) RefreshAll();
+        }
+    }
+
+    void OnBuyType(ChickenType t)
+    {
+        if (upgrades == null) return;
+        bool ok = upgrades.TryBuy(UpgradeIds.TypeKey(t));
+        if (ok) RefreshAll();
+    }
+
+    void RefreshAll()
+    {
+        if (upgrades == null) return;
+
+        // TEAM
+        for (int i = 0; i < teamIds.Length; i++)
+        {
+            string id = teamIds[i];
+            long price = upgrades.GetPriceNext(id);
+            int lv = upgrades.GetLevel(id);
+
+            if (teamPriceTexts != null && i < teamPriceTexts.Length && teamPriceTexts[i] != null)
+                teamPriceTexts[i].text = price.ToString();
+
+            if (teamLevelTexts != null && i < teamLevelTexts.Length && teamLevelTexts[i] != null)
+                teamLevelTexts[i].text = $"Lv {lv}";
+
+            if (teamNameTexts != null && i < teamNameTexts.Length && teamNameTexts[i] != null)
+                teamNameTexts[i].text = id.Replace('_', ' ').ToUpperInvariant();
+
+            // enable/disable theo coin
+            if (teamButtons != null && i < teamButtons.Length && teamButtons[i] != null)
+            {
+                bool canAfford = EconomyManager.I ? (EconomyManager.I.Coin >= price) : true;
+                teamButtons[i].interactable = canAfford;
+            }
+        }
+
+        // PER-TYPE
+        for (int i = 0; i < perTypes.Length; i++)
+        {
+            string id = UpgradeIds.TypeKey(perTypes[i]);
+            long price = upgrades.GetPriceNext(id);
+            int lv = upgrades.GetLevel(id);
+
+            if (typePriceTexts != null && i < typePriceTexts.Length && typePriceTexts[i] != null)
+                typePriceTexts[i].text = price.ToString();
+
+            if (typeLevelTexts != null && i < typeLevelTexts.Length && typeLevelTexts[i] != null)
+                typeLevelTexts[i].text = $"Lv {lv}";
+
+            if (typeNameTexts != null && i < typeNameTexts.Length && typeNameTexts[i] != null)
+                typeNameTexts[i].text = perTypes[i].ToString().ToUpperInvariant();
+
+            if (typeButtons != null && i < typeButtons.Length && typeButtons[i] != null)
+            {
+                bool canAfford = EconomyManager.I ? (EconomyManager.I.Coin >= price) : true;
+                typeButtons[i].interactable = canAfford;
+            }
+        }
+    }
+
+    void TrySubscribeCoinEvent()
+    {
+        if (EconomyManager.I == null) return;
+        EconomyManager.I.OnCoinChanged += _ => RefreshAll();
+    }
+    void TryUnsubscribeCoinEvent()
+    {
+        if (EconomyManager.I == null) return;
+        EconomyManager.I.OnCoinChanged -= _ => RefreshAll();
+    }
+}
+# ---- END ----
+
+# ==== FILE 24/32: Scripts\Upgrades\UpgradeDefinitionSO.cs
 # SIZE: 829 bytes | LINES: 24
 # ---- BEGIN ----
 using UnityEngine;
@@ -1255,7 +1471,7 @@ public class UpgradeDefinitionSO : ScriptableObject
 }
 # ---- END ----
 
-# ==== FILE 24/31: Scripts\Upgrades\UpgradeIds.cs
+# ==== FILE 25/32: Scripts\Upgrades\UpgradeIds.cs
 # SIZE: 524 bytes | LINES: 12
 # ---- BEGIN ----
 public static class UpgradeIds
@@ -1272,7 +1488,7 @@ public static class UpgradeIds
 }
 # ---- END ----
 
-# ==== FILE 25/31: Scripts\Upgrades\UpgradeManager.cs
+# ==== FILE 26/32: Scripts\Upgrades\UpgradeManager.cs
 # SIZE: 7348 bytes | LINES: 209
 # ---- BEGIN ----
 // Assets/Scripts/Upgrades/UpgradeManager.cs
@@ -1486,7 +1702,7 @@ public class UpgradeManager : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 26/31: Scripts\Wave\EnemyHook.cs
+# ==== FILE 27/32: Scripts\Wave\EnemyHook.cs
 # SIZE: 413 bytes | LINES: 17
 # ---- BEGIN ----
 // Assets/Scripts/Wave/EnemyHook.cs
@@ -1508,7 +1724,7 @@ public class EnemyHook : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 27/31: Scripts\Wave\EnemyRegistry.cs
+# ==== FILE 28/32: Scripts\Wave\EnemyRegistry.cs
 # SIZE: 841 bytes | LINES: 37
 # ---- BEGIN ----
 using System;
@@ -1550,7 +1766,7 @@ public class EnemyRegistry : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 28/31: Scripts\Wave\WaveDefinitionSO.cs
+# ==== FILE 29/32: Scripts\Wave\WaveDefinitionSO.cs
 # SIZE: 1173 bytes | LINES: 37
 # ---- BEGIN ----
 using System;
@@ -1592,8 +1808,8 @@ namespace CR.Wave
 }
 # ---- END ----
 
-# ==== FILE 29/31: Scripts\Wave\WaveManager.cs
-# SIZE: 4601 bytes | LINES: 137
+# ==== FILE 30/32: Scripts\Wave\WaveManager.cs
+# SIZE: 5861 bytes | LINES: 176
 # ---- BEGIN ----
 // Assets/Scripts/Wave/WaveManager.cs
 using CR.Wave;
@@ -1605,7 +1821,7 @@ public class WaveManager : MonoBehaviour
     [Header("Refs")]
     public BaseHealth baseHealth;
     public WaveSpawner spawner;
-    public ProgressionCurveSO progression; // để tính thưởng cơ bản :contentReference[oaicite:7]{index=7}
+    public ProgressionCurveSO progression; // để tính thưởng cơ bản
 
     [Header("Definitions")]
     public WaveDefinitionSO[] presets; // Wave 1-20 có thể preset tay
@@ -1613,22 +1829,38 @@ public class WaveManager : MonoBehaviour
 
     [Header("Runtime (read-only)")]
     [SerializeField] private WaveState state = WaveState.Prepare;
-    [SerializeField] private int currentWaveIndex;
+    [SerializeField] private int currentWaveIndex; // wave đang sắp chơi (1-based)
     [SerializeField] private bool lastWin;
 
     public event Action OnWin;
     public event Action OnFail;
 
+    // === RESULT SNAPSHOT (để panel hiển thị & claim) ===
+    int _resultWaveIndex;
+    int _resultTotalKill;
+    long _resultWaveReward;
+    bool _claimed; // chặn claim lại
+
+    // Expose cho UI
+    public WaveState State => state;
+    public int CurrentWave => currentWaveIndex;          // wave sắp đánh
+    public bool LastWin => lastWin;
+
+    public int ResultWaveIndex => _resultWaveIndex;      // wave vừa clear
+    public int ResultTotalKill => _resultTotalKill;
+    public long ResultWaveReward => _resultWaveReward;
+    public bool CanClaim => lastWin && !_claimed && _resultWaveReward > 0;
+
     void Awake()
     {
-        // Khởi động từ Save
+        // Khởi động từ Save: wave index đã clear nằm trong Save, nên wave sắp đánh là +1
         currentWaveIndex = Mathf.Max(1, SaveManager.Data.waveIndex + 1);
     }
 
     void OnEnable()
     {
         if (baseHealth) baseHealth.OnBaseDead += HandleBaseDead;
-        if (EnemyRegistry.I) EnemyRegistry.I.OnAllCleared += HandleAllCleared; // win khi hết enemy :contentReference[oaicite:8]{index=8}
+        if (EnemyRegistry.I) EnemyRegistry.I.OnAllCleared += HandleAllCleared; // win khi hết enemy
     }
 
     void OnDisable()
@@ -1646,7 +1878,12 @@ public class WaveManager : MonoBehaviour
     {
         state = WaveState.Prepare;
         lastWin = false;
-        // Tại Prepare bạn có thể mở UI nâng cấp/mua gà...
+        // clear snapshot ở mỗi lần vào prepare
+        _resultWaveIndex = 0;
+        _resultTotalKill = 0;
+        _resultWaveReward = 0;
+        _claimed = false;
+
         if (autoStart || SaveManager.Data.autoStart) StartCombat();
     }
 
@@ -1660,7 +1897,24 @@ public class WaveManager : MonoBehaviour
         if (!def) { Debug.LogWarning($"[WaveManager] Missing Wave {currentWaveIndex} def"); }
         spawner.Begin(def);
 
-        // Reset/scale Base HP theo wave đã có trong BaseHealth (đang tính bằng base + hpPerWave*wave) :contentReference[oaicite:9]{index=9}
+        // BaseHP đã tự scale trong BaseHealth theo Save.waveIndex
+    }
+
+    // === Tính thống kê cho 1 wave bất kỳ (không phụ thuộc state) ===
+    public (int totalKill, long waveReward) CalcWaveStats(int waveIndex)
+    {
+        var def = GetWaveDefinition(waveIndex);
+        if (def == null) return (0, 0);
+
+        int totalKill = 0;
+        foreach (var g in def.groups) totalKill += g.count;
+
+        // Ví dụ công thức thưởng:
+        // reward = 20_000 * (waveRewardGrowth ^ (waveIndex - 1))
+        float growth = progression ? Mathf.Pow(progression.waveRewardGrowth, waveIndex - 1) : 1f;
+        long baseReward = 20000;
+        long reward = Mathf.RoundToInt(baseReward * growth);
+        return (totalKill, reward);
     }
 
     WaveDefinitionSO GetWaveDefinition(int waveIndex)
@@ -1669,72 +1923,73 @@ public class WaveManager : MonoBehaviour
         if (presets != null && waveIndex - 1 < presets.Length && waveIndex - 1 >= 0)
             return presets[waveIndex - 1];
 
-        // ≥21: về sau gắn RuntimeWaveGenerator (Sprint 6)
-        return presets != null && presets.Length > 0 ? presets[Mathf.Clamp(presets.Length - 1, 0, presets.Length - 1)] : null;
+        // ≥21: dùng preset cuối cùng làm fallback (hoặc gắn generator sau)
+        return presets != null && presets.Length > 0
+            ? presets[Mathf.Clamp(presets.Length - 1, 0, presets.Length - 1)]
+            : null;
     }
 
     void HandleAllCleared()
     {
         if (state != WaveState.Combat) return;
-        if (!spawner.IsFinishedSpawning) return; // chưa spawn xong mà hết là do timing, chờ tiếp
-        // WIN
+        if (!spawner.IsFinishedSpawning) return; // nếu còn đợt spawn thì chờ tiếp
+
+        // WIN → chốt snapshot (không cộng coin, không advance ở đây)
         lastWin = true;
-        GrantRewards(currentWaveIndex);
-        AdvanceWaveIndex();
+        _resultWaveIndex = currentWaveIndex;
+        (_resultTotalKill, _resultWaveReward) = CalcWaveStats(currentWaveIndex);
+        _claimed = false;
+
         state = WaveState.Result;
         OnWin?.Invoke();
-        // Mở UI Result Win (Claim). Sau Claim → GoPrepare();
     }
 
     void HandleBaseDead()
     {
         if (state != WaveState.Combat) return;
-        // FAIL
+
         lastWin = false;
-        // Không cộng WaveReward, chỉ giữ coin rơi trong combat (đã AddCoin khi enemy chết)
+        _resultWaveIndex = 0;
+        _resultTotalKill = 0;
+        _resultWaveReward = 0;
+        _claimed = true; // chặn claim
+
         state = WaveState.Result;
         OnFail?.Invoke();
-        // UI Result Fail → Retry (replay wave) hoặc Back
     }
 
-    void AdvanceWaveIndex()
-    {
-        SaveManager.Data.waveIndex = Mathf.Max(SaveManager.Data.waveIndex, currentWaveIndex);
-        SaveManager.MarkDirtyAndSave();
-        currentWaveIndex = SaveManager.Data.waveIndex + 1;
-    }
-
-    void GrantRewards(int waveIndex)
-    {
-        if (!progression) return;
-        // Công thức gợi ý: WaveReward = 1000 * (waveRewardGrowth^waveIndex)
-        double baseReward = 1000.0 * Math.Pow(progression.waveRewardGrowth, waveIndex);
-        long reward = (long)Math.Round(baseReward);
-        EconomyManager.I.AddCoin(reward); // EconomyManager đã có sẵn :contentReference[oaicite:10]{index=10}
-    }
-
-    // Public API cho UI
-    public WaveState State => state;
-    public int CurrentWave => currentWaveIndex;
-    public bool LastWin => lastWin;
-
-    public void ClaimAndContinue()
+    // Claim thưởng và chuyển sang Prepare. multiplier = 1 (Claim), = 2 (Claim 2x)...
+    public void ClaimAndContinue(float multiplier = 1f)
     {
         if (state != WaveState.Result) return;
+
+        if (lastWin && !_claimed && _resultWaveReward > 0)
+        {
+            long reward = Mathf.RoundToInt(_resultWaveReward * Mathf.Max(1f, multiplier));
+            EconomyManager.I.AddCoin(reward);
+
+            // Advance wave sau khi đã claim
+            SaveManager.Data.waveIndex = Mathf.Max(SaveManager.Data.waveIndex, _resultWaveIndex);
+            SaveManager.MarkDirtyAndSave();
+            currentWaveIndex = SaveManager.Data.waveIndex + 1;
+
+            _claimed = true;
+        }
+
         GoPrepare();
     }
 
     public void Retry()
     {
         if (state != WaveState.Result) return;
-        // Retry lại cùng waveIndex hiện tại (không advance)
+        // Không advance, không cộng coin
         state = WaveState.Prepare;
         StartCombat();
     }
 }
 # ---- END ----
 
-# ==== FILE 30/31: Scripts\Wave\WaveSpawner.cs
+# ==== FILE 31/32: Scripts\Wave\WaveSpawner.cs
 # SIZE: 4064 bytes | LINES: 132
 # ---- BEGIN ----
 // Assets/Scripts/Wave/WaveSpawner.cs
@@ -1871,7 +2126,7 @@ public class WaveSpawner : MonoBehaviour
 }
 # ---- END ----
 
-# ==== FILE 31/31: Scripts\Wave\WaveState.cs
+# ==== FILE 32/32: Scripts\Wave\WaveState.cs
 # SIZE: 108 bytes | LINES: 7
 # ---- BEGIN ----
 // Assets/Scripts/Wave/WaveState.cs
@@ -1884,4 +2139,4 @@ public enum WaveState
 # ---- END ----
 
 ========== SUMMARY ==========
-31 file(s), 1724 lines, 53655 bytes
+32 file(s), 1974 lines, 61774 bytes

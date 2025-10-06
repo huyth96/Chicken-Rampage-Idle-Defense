@@ -12,12 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 224394cf24d755346a2f4c2bcd40122e, type: 3}
   m_Name: Wave1
   m_EditorClassIdentifier: 
-  waveIndex: 1
+  waveIndex: 5
   targetDuration: 25
   isBoss: 0
   groups:
   - enemy: {fileID: 11400000, guid: bd501e2eaddab70439865a668e63a23c, type: 2}
-    count: 20
+    count: 1
     interval: 2
     startTime: 0
     laneMode: 1
