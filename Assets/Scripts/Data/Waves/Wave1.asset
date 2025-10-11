@@ -17,7 +17,7 @@ MonoBehaviour:
   isBoss: 0
   groups:
   - enemy: {fileID: 11400000, guid: bd501e2eaddab70439865a668e63a23c, type: 2}
-    count: 1
+    count: 30
     interval: 2
     startTime: 0
     laneMode: 1
